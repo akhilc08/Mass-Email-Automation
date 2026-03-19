@@ -98,7 +98,9 @@ async function runPipeline(company, env, deps, opts = {}) {
         });
         subject = p.subject;
         body = p.body;
-      } catch {}
+      } catch (err) {
+        console.warn(`[personalizer] ${err.message}`);
+      }
     }
 
     // Send
