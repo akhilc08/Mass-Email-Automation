@@ -20,6 +20,9 @@ function parseApolloResponse(data) {
 }
 
 async function findContacts(companyName) {
+  if (!process.env.APOLLO_API_KEY) {
+    throw new Error('APOLLO_API_KEY environment variable is not set');
+  }
   const apiKey = process.env.APOLLO_API_KEY;
   const res = await fetch('https://api.apollo.io/v1/mixed_people/search', {
     method: 'POST',
@@ -45,7 +48,12 @@ async function findContacts(companyName) {
     throw err;
   }
 
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Apollo API returned non-JSON response (status ${res.status})`);
+  }
   return parseApolloResponse(data);
 }
 

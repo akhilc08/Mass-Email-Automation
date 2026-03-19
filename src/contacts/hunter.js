@@ -14,6 +14,9 @@ function parseHunterResponse(data) {
 }
 
 async function findContacts(domain) {
+  if (!process.env.HUNTER_API_KEY) {
+    throw new Error('HUNTER_API_KEY environment variable is not set');
+  }
   const apiKey = process.env.HUNTER_API_KEY;
   const url = `https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(domain)}&api_key=${apiKey}`;
   const res = await fetch(url);
@@ -29,7 +32,12 @@ async function findContacts(domain) {
     throw err;
   }
 
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Hunter API returned non-JSON response (status ${res.status})`);
+  }
   return parseHunterResponse(data);
 }
 
