@@ -64,15 +64,17 @@ node run.js companies.csv --dry-run
 
 ## Dry-Run Mode
 
-When `--dry-run` is passed:
+When `--dry-run` is passed, the full pipeline runs — find, rank, and the send loop — with one exception: Zoho is never called. The send loop processes all contacts including personal domain checks. When it reaches a contact that would be sent to (passed the personal domain check), it logs `status: "dry_run"` and stops for that company (same as a `sent` outcome for control flow purposes). This means send loop exhaustion logic (writing `state/failed/` with `all_contacts_exhausted` or `no_valid_email_found`) runs exactly the same as a normal run.
+
+Specifically in dry-run:
 - All contact-finding steps run normally (Apollo, Hunter, scraper)
 - Contacts are ranked and written to `state/contacts/{slug}.json` as normal
-- The Zoho token refresh is **skipped** (no send will occur)
-- No emails are sent
-- The first contact that would have been sent to is logged with `status: "dry_run"`
-- `state/failed/` is still written for companies with no findable contacts
-- `state/failed_summary.txt` is still written at run end
-- The final summary still prints to terminal
+- The Zoho token refresh is **skipped** — credentials are not validated
+- When a contact passes the personal domain check, log `status: "dry_run"` and stop (no Zoho call)
+- Personal domain contacts are still logged as `skipped_personal_domain`
+- Send loop exhaustion rules apply unchanged (state/failed/ written with correct reason)
+- `state/failed_summary.txt` is written at run end
+- The final summary prints to terminal
 - Rate limiting delay is **skipped**
 
 ---
@@ -150,8 +152,8 @@ For each contact in ranked order:
   - **2xx success** → log `sent`, stop; only one email sent per company
   - **401 or 403** → halt the entire run immediately (do not log this contact, do not write `state/failed/` for the current company, do not process further companies); applies whether received on initial attempt or retry
   - **422** → log `bounced`, try next contact
-  - **429** → wait 60 seconds, retry the same contact once; retry returns 2xx → log `sent`, stop; retry returns 401/403 → halt run; retry returns anything else → log `failed`, next contact
-  - **5xx or network error** → retry once after 10 seconds; retry returns 2xx → log `sent`, stop; retry returns 401/403 → halt run; retry returns anything else → log `failed`, next contact
+  - **429** → wait 60 seconds, retry the same contact once; retry returns 2xx → log `sent`, stop; retry returns 401/403 → halt run; retry returns anything else (including a second 429) → log `failed`, next contact. No further retry cycles.
+  - **5xx or network error** → retry once after 10 seconds; retry returns 2xx → log `sent`, stop; retry returns 401/403 → halt run; retry returns anything else (including another 5xx or a 429) → log `failed`, next contact. No further retry cycles.
 
 **c. Exhaustion:** If the loop ends without a `sent` entry for this company:
 - If at least one send was attempted (bounced/failed log entries exist for this company): write `state/failed/{slug}.json` with `reason: "all_contacts_exhausted"`; no additional log entry
@@ -160,9 +162,9 @@ For each contact in ranked order:
 
 ### 4. Rate Limiting
 
-The delay fires **between contacts where a send was attempted** — not between retries of the same contact, not after skipped contacts, not in dry-run mode. Specifically: after logging a `sent`, `bounced`, or `failed` entry (i.e. a Zoho send was made), wait `SEND_DELAY_SECONDS` before attempting the next contact or the next company.
+The delay fires **between contacts where a send was attempted** — not between retries of the same contact, not after skipped contacts, not in dry-run mode. Specifically: after logging a `sent`, `bounced`, or `failed` entry (i.e. a Zoho send was made), wait `SEND_DELAY_SECONDS` seconds before attempting the next contact or the next company.
 
-Default: 30. Valid range: 0–300. A value of 0 disables the delay.
+`SEND_DELAY_SECONDS` defaults to 30. Valid range: 0–300. A value of 0 disables the delay.
 
 ---
 
@@ -341,7 +343,10 @@ Written when a company ends with no successful send:
 - `all_contacts_exhausted` — at least one send was attempted but all bounced or failed
 - `no_valid_email_found` — contacts were found but all had personal domain emails
 
-`contacts_tried`: count of contacts for which a Zoho send was attempted (personal-domain skips do not count). For `reason: "no_contacts_found"`, this value is `0`.
+`contacts_tried`: count of contacts for which a Zoho send was attempted (personal-domain skips do not count, dry-run `dry_run` entries do not count). Values by reason:
+- `no_contacts_found` → `0` (no contacts existed)
+- `no_valid_email_found` → `0` (contacts existed but all were personal-domain skips; no Zoho call was made)
+- `all_contacts_exhausted` → count of bounced + failed log entries for this company
 
 ### `state/failed_summary.txt`
 
