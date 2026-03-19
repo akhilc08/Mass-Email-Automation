@@ -1,0 +1,13 @@
+Quick question for {{company_name}}
+
+Hi {{first_name}},
+
+I came across {{company_name}} and wanted to reach out directly.
+
+I'd love to connect briefly to share how we might be able to help {{exec_title}} and your team.
+
+Would you be open to a quick 15-minute call this week?
+
+Best,
+{{sender_name}}
+{{sender_email}}

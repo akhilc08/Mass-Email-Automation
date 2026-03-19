@@ -1,0 +1,35 @@
+{
+  "name": "ac-solutions-email-automation",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/akhilc08/AC-Solutions-Email-Automation.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/akhilc08/AC-Solutions-Email-Automation/issues"
+  },
+  "homepage": "https://github.com/akhilc08/AC-Solutions-Email-Automation#readme",
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "csv-parse": "^6.2.0",
+    "dotenv": "^17.3.1"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0"
+  },
+  "jest": {
+    "testEnvironment": "node"
+  }
+}
