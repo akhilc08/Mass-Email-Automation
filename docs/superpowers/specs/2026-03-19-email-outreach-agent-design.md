@@ -193,6 +193,25 @@ Scraped contacts are assigned `source: "scraper"` and `confidence: "low"` unless
 
 ---
 
+## Template File Format
+
+Template files are plain text (`.txt`). The **first line** is the email subject (supports placeholders). The **second line** must be blank. Lines 3 onward are the email body (supports placeholders). Example:
+
+```
+Subject: Quick question for {{company_name}}
+
+Hi {{first_name}},
+
+I wanted to reach out about...
+
+Best,
+{{sender_name}}
+```
+
+`personalizer.js` reads the file, splits on the first blank line, substitutes all placeholders in both subject and body, and returns `{ subject, body }`.
+
+---
+
 ## Template Placeholders
 
 | Placeholder | Resolved value |
@@ -204,7 +223,7 @@ Scraped contacts are assigned `source: "scraper"` and `confidence: "low"` unless
 | `{{sender_name}}` | From `SENDER_NAME` env var |
 | `{{sender_email}}` | From `SENDER_EMAIL` env var |
 
-Subject line also supports placeholders. The default template should use either `{{first_name}}` or `{{full_name}}` in the greeting — not both — since they may resolve identically when the name is unknown.
+The default template should use either `{{first_name}}` or `{{full_name}}` in the greeting — not both — since they may resolve identically when the name is unknown.
 
 ---
 
@@ -234,6 +253,17 @@ At runtime, `zoho-auth.js` calls the Zoho token refresh endpoint once at startup
 
 ---
 
+## External API Implementation Notes
+
+The spec defines behavior (inputs, outputs, error handling) for each external API call. Specific endpoint URLs, request/response schemas, and authentication flows should be implemented by consulting the official API documentation:
+
+- **Apollo.io** — use the People Search endpoint (`POST /v1/mixed_people/search`); auth via `APOLLO_API_KEY` as a header. Filter by company name; extract contacts with leadership titles.
+- **Hunter.io** — use the Domain Search endpoint; auth via `HUNTER_API_KEY` as a query param. Match returned emails against leadership titles.
+- **Zoho Mail API** — use the Send Mail endpoint (`POST /v1/accounts/{ZOHO_ACCOUNT_ID}/messages/send`); auth via Bearer access token obtained from `zoho-auth.js`. Request body: `{ fromAddress, toAddress, subject, content }`. OAuth refresh endpoint: `POST https://accounts.zoho.com/oauth/v2/token` with `grant_type=refresh_token`.
+- **Scraper web search** — implementation-defined. Options include a search API (e.g., SerpAPI, Brave Search) or a headless browser. The spec requires the scraper to identify the most likely company website URL from results; the mechanism for doing so is left to the implementer.
+
+---
+
 ## Apollo and Hunter Error Handling
 
 | Error | Behavior |
@@ -244,6 +274,17 @@ At runtime, `zoho-auth.js` calls the Zoho token refresh endpoint once at startup
 | Hunter 429/5xx/network | Log warning with status code, fall through to scraper |
 
 These are per-company decisions and do not halt the run. Persistent auth failures will produce a warning log entry for every company.
+
+---
+
+## Startup Initialization
+
+At startup, `run.js` performs the following before processing any company:
+1. Load `.env` via dotenv
+2. Validate `SEND_DELAY_SECONDS` — if the value is present but outside 0–300, clamp it to the nearest boundary and print a warning (e.g. `-5` → `0`, `500` → `300`). If absent, use default `30`.
+3. Create `state/`, `state/contacts/`, and `state/failed/` directories if they do not exist
+4. Build the taken-slug set by scanning filenames in `state/contacts/`
+5. (Normal run only) Refresh Zoho access token via `zoho-auth.js`; halt on failure
 
 ---
 
@@ -343,10 +384,10 @@ Written when a company ends with no successful send:
 - `all_contacts_exhausted` — at least one send was attempted but all bounced or failed
 - `no_valid_email_found` — contacts were found but all had personal domain emails
 
-`contacts_tried`: count of contacts for which a Zoho send was attempted (personal-domain skips do not count, dry-run `dry_run` entries do not count). Values by reason:
+`contacts_tried`: count of contacts for which a Zoho send was attempted in the **current run** (personal-domain skips and dry-run entries do not count). Values by reason:
 - `no_contacts_found` → `0` (no contacts existed)
 - `no_valid_email_found` → `0` (contacts existed but all were personal-domain skips; no Zoho call was made)
-- `all_contacts_exhausted` → count of bounced + failed log entries for this company
+- `all_contacts_exhausted` → count of `bounced` + `failed` log entries for this company in the current run
 
 ### `state/failed_summary.txt`
 
