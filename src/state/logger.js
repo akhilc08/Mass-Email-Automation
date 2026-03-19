@@ -4,7 +4,12 @@ class Logger {
   constructor(logPath) {
     this.logPath = logPath;
     if (fs.existsSync(logPath)) {
-      this.entries = JSON.parse(fs.readFileSync(logPath, 'utf-8'));
+      try {
+        this.entries = JSON.parse(fs.readFileSync(logPath, 'utf-8'));
+      } catch {
+        console.warn(`Warning: could not parse ${logPath}, starting fresh log`);
+        this.entries = [];
+      }
     } else {
       this.entries = [];
     }

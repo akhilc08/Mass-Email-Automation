@@ -25,7 +25,12 @@ async function refreshToken() {
     throw new Error(`Zoho token refresh failed: HTTP ${response.status}`);
   }
 
-  const data = await response.json();
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(`Zoho token refresh failed: non-JSON response (HTTP ${response.status})`);
+  }
   if (!data.access_token) {
     throw new Error(`Zoho token refresh returned no access_token: ${JSON.stringify(data)}`);
   }
