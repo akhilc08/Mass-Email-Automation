@@ -155,14 +155,18 @@ For each contact in ranked order:
   - **429** → wait 60 seconds, retry the same contact once; retry returns 2xx → log `sent`, stop; retry returns 401/403 → halt run; retry returns anything else (including a second 429) → log `failed`, next contact. No further retry cycles.
   - **5xx or network error** → retry once after 10 seconds; retry returns 2xx → log `sent`, stop; retry returns 401/403 → halt run; retry returns anything else (including another 5xx or a 429) → log `failed`, next contact. No further retry cycles.
 
-**c. Exhaustion:** If the loop ends without a `sent` entry for this company:
+**c. Exhaustion:** After iterating all contacts in the ranked list — regardless of whether any send was attempted — if no `sent` (or `dry_run`) entry was written for this company:
 - If at least one send was attempted (bounced/failed log entries exist for this company): write `state/failed/{slug}.json` with `reason: "all_contacts_exhausted"`; no additional log entry
-- If every contact was skipped (only `skipped_personal_domain` entries for this company): write `state/failed/{slug}.json` with `reason: "no_valid_email_found"`; no additional log entry
+- If every contact was skipped (only `skipped_personal_domain` entries for this company, or no contacts at all passed the domain check): write `state/failed/{slug}.json` with `reason: "no_valid_email_found"`; no additional log entry
 - Include in final summary either way
+
+Note: `no_valid_email_found` only applies when every contact was a personal-domain skip (no Zoho send attempted). If any mix of skips + bounces/failures exists, `all_contacts_exhausted` applies because at least one Zoho send was attempted.
 
 ### 4. Rate Limiting
 
 The delay fires **between contacts where a send was attempted** — not between retries of the same contact, not after skipped contacts, not in dry-run mode. Specifically: after logging a `sent`, `bounced`, or `failed` entry (i.e. a Zoho send was made), wait `SEND_DELAY_SECONDS` seconds before attempting the next contact or the next company.
+
+**Retry waits and send delay are additive.** For a 429, the sequence is: send → wait 60s → retry → log outcome → wait SEND_DELAY_SECONDS. Both waits fire. This is intentional — the retry wait is for rate-limit compliance, the send delay is for spam-avoidance spacing.
 
 `SEND_DELAY_SECONDS` defaults to 30. Valid range: 0–300. A value of 0 disables the delay.
 
@@ -384,10 +388,10 @@ Written when a company ends with no successful send:
 - `all_contacts_exhausted` — at least one send was attempted but all bounced or failed
 - `no_valid_email_found` — contacts were found but all had personal domain emails
 
-`contacts_tried`: count of contacts for which a Zoho send was attempted in the **current run** (personal-domain skips and dry-run entries do not count). Values by reason:
-- `no_contacts_found` → `0` (no contacts existed)
-- `no_valid_email_found` → `0` (contacts existed but all were personal-domain skips; no Zoho call was made)
-- `all_contacts_exhausted` → count of `bounced` + `failed` log entries for this company in the current run
+`contacts_tried`: count of contacts for which a Zoho send was attempted in the **current run** (personal-domain skips and dry-run entries do not count). The formula is always "count of `bounced` + `failed` log entries for this company in the current run." By reason this evaluates to:
+- `no_contacts_found` → `0` (no log entries of any kind)
+- `no_valid_email_found` → `0` (only `skipped_personal_domain` entries; no Zoho sends attempted)
+- `all_contacts_exhausted` → N ≥ 1 (formula result; at least one Zoho send was attempted)
 
 ### `state/failed_summary.txt`
 
@@ -436,6 +440,8 @@ Printed to terminal after all companies are processed:
 ```
 
 The "Failed" count includes all three failure reasons: `no_contacts_found`, `all_contacts_exhausted`, and `no_valid_email_found`. Each failed company is listed with its reason in brackets.
+
+**When the run is halted by a Zoho 401/403:** The terminal summary is NOT printed (the run aborted). Instead, print an error message and exit non-zero. The company that triggered the halt does not appear in any summary or state/failed/ file.
 
 `state/failed_summary.txt` is written at this point (end of run), one company name per line.
 
