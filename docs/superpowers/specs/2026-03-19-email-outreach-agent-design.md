@@ -34,15 +34,15 @@ project/
 │   │
 │   ├── state/
 │   │   ├── contacts.js           # Read/write state/contacts/{slug}.json
-│   │   └── logger.js             # Append to state/outreach_log.json
+│   │   └── logger.js             # Read/write state/outreach_log.json
 │   │
 │   └── pipeline.js               # Per-company orchestrator (find → rank → send → log)
 │
 ├── state/
 │   ├── contacts/                 # One JSON per company (gitignored)
-│   ├── outreach_log.json         # Append-only send log (gitignored)
+│   ├── outreach_log.json         # JSON array log of all send attempts (gitignored)
 │   ├── failed_summary.txt        # Plain-text list of companies with 0 sends (gitignored)
-│   └── failed/                   # Per-company JSON for exhausted contact lists (gitignored)
+│   └── failed/                   # Per-company JSON for failed/exhausted companies (gitignored)
 │
 └── templates/
     └── default.txt               # Default email template with placeholders
@@ -56,9 +56,24 @@ project/
 # Normal run
 node run.js companies.csv
 
-# Dry run — full pipeline but no emails sent
+# Dry run — find contacts and rank, but do not send emails
 node run.js companies.csv --dry-run
 ```
+
+---
+
+## Dry-Run Mode
+
+When `--dry-run` is passed:
+- All contact-finding steps run normally (Apollo, Hunter, scraper)
+- Contacts are ranked and written to `state/contacts/{slug}.json` as normal
+- The Zoho token refresh is **skipped** (no send will occur)
+- No emails are sent
+- The first contact that would have been sent to is logged with `status: "dry_run"`
+- `state/failed/` is still written for companies with no findable contacts
+- `state/failed_summary.txt` is still written at run end
+- The final summary still prints to terminal
+- Rate limiting delay is **skipped**
 
 ---
 
@@ -71,7 +86,24 @@ Sakura Sushi Bar,
 Blue Ridge Roofing,blueridgeroofing.com
 ```
 
-`domain` is optional. If blank, the scraper attempts to derive it from the company name.
+`domain` is optional. When blank, behavior per source:
+- **Apollo.io** — searches by company name only (no domain required)
+- **Hunter.io** — skipped entirely (requires a domain)
+- **Scraper** — see Scraper Behavior below
+
+---
+
+## Company Slug
+
+The slug is used for all state filenames (`state/contacts/{slug}.json`, `state/failed/{slug}.json`).
+
+**Derivation:** Lowercase the `company_name`, replace spaces and non-alphanumeric characters with hyphens, collapse consecutive hyphens, strip leading/trailing hyphens, truncate to 60 characters.
+
+Examples: `Joe's Pizza Ithaca` → `joes-pizza-ithaca`, `Sakura Sushi Bar` → `sakura-sushi-bar`
+
+**Collision detection:** At run start, `run.js` scans `state/contacts/` for existing filenames and builds an in-memory set of taken slugs. When generating a slug for a company, if the slug is already in the taken set, append `-2` (then `-3`, etc.) until it is unique. Add each assigned slug to the taken set immediately. This means the taken set covers both slugs from prior runs (existing files) and slugs assigned earlier in the current batch.
+
+`outreach_log.json` entries always include the original `company_name` string, so log entries remain distinguishable regardless of slug.
 
 ---
 
@@ -79,15 +111,17 @@ Blue Ridge Roofing,blueridgeroofing.com
 
 ### 1. Find Contacts
 
-Sources are tried in order until results are found:
+Sources tried in order until results are found:
 
 1. **Apollo.io** — search by company name, pull all contacts with leadership titles
-2. **Hunter.io** — domain search, match results against leadership titles
-3. **Web scraper** — search for company site, scrape visible emails and about/team pages; if a name is found but no email, try common patterns (`firstname@domain`, `first.last@domain`, `info@domain`)
+2. **Hunter.io** — domain search (only if domain is available), match results against leadership titles
+3. **Scraper** — see Scraper Behavior below
+
+If all three sources return nothing: log `no_contacts_found` to `outreach_log.json`, write `state/failed/{slug}.json` with `reason: "no_contacts_found"`, include in final summary.
 
 ### 2. Rank Contacts
 
-`ranker.js` applies the priority chain:
+`ranker.js` receives a raw (unranked) contacts array and returns it sorted by:
 
 | Priority | Titles |
 |---|---|
@@ -99,50 +133,113 @@ Sources are tried in order until results are found:
 
 Ties broken by confidence: `high > medium > low`.
 
-Result saved to `state/contacts/{slug}.json` before sending.
+The ranked output (with `priority` field populated) is saved to `state/contacts/{slug}.json` before the send loop begins.
 
 ### 3. Send Loop
 
+**One log entry is written per contact processed** — whether skipped, bounced, failed, or sent. Each entry captures the outcome for that specific contact. No separate company-level log entry is written when the loop ends.
+
 For each contact in ranked order:
-- Skip if email is on a personal domain (gmail, yahoo, hotmail, etc.)
+
+**a. Personal domain check:** If the contact's email address is on a personal domain (see blocklist), write a log entry with `status: "skipped_personal_domain"` (with `email` and `contact_attempted` set to the contact's values), skip to next contact. Does not count as a send attempt.
+
+**b. Personalize and send:**
 - Personalize template for this contact
 - Send via Zoho Mail API
-- Log attempt to `outreach_log.json`
-- **If success:** stop — only one email sent per company
-- **If bounced (4xx):** mark `bounced`, try next contact
-- **If server error (5xx / network):** retry once after 10s, then try next contact
-- **If all exhausted:** write to `state/failed/{slug}.json`, flag for summary
+- Write a log entry with the outcome:
+  - **2xx success** → log `sent`, stop; only one email sent per company
+  - **401 or 403** → halt the entire run immediately (do not log, do not try next); applies whether received on initial attempt or retry
+  - **422** → log `bounced`, try next contact
+  - **429** → wait 60 seconds, retry the same contact once; still 429 → log `failed`, next; retry yields 401/403 → halt run
+  - **5xx or network error** → retry once after 10s; still fails → log `failed`, next; retry yields 401/403 → halt run
+
+**c. Exhaustion:** If the loop ends without a `sent` entry for this company:
+- If at least one send was attempted (bounced/failed log entries exist for this company): write `state/failed/{slug}.json` with `reason: "all_contacts_exhausted"`; no additional log entry
+- If every contact was skipped (only `skipped_personal_domain` entries for this company): write `state/failed/{slug}.json` with `reason: "no_valid_email_found"`; no additional log entry
+- Include in final summary either way
 
 ### 4. Rate Limiting
 
-30-second wait between actual email sends (not between contact lookups).
+Wait `SEND_DELAY_SECONDS` seconds between actual email sends (not between contact lookups, not between retries, not in dry-run mode). Default: 30. Valid range: 0–300. A value of 0 disables the delay.
+
+---
+
+## Scraper Behavior
+
+The scraper receives `company_name` and optionally `domain`.
+
+**When `domain` is provided:**
+- Fetch the company's website directly
+- Scan visible text and anchor href values for email addresses
+- Also check pages linked from the root that contain "about", "team", "contact", or "staff" in the URL or link text (up to 2 levels deep)
+
+**When `domain` is blank:**
+- Perform a web search for `"<company_name>" contact email` using a search API or headless browser
+- Extract the most likely company website URL from results
+- Then follow the same scrape steps as above
+
+**Email pattern guessing (last resort within scraper):**
+If a person's name is found on the page but no email is visible, and the domain is known (either provided or derived), try these patterns in order and return the first that appears valid (no deeper validation):
+1. `firstname@domain`
+2. `first.last@domain`
+3. `firstnamelastname@domain`
+4. `info@domain` (generic fallback, confidence: low)
+
+Scraped contacts are assigned `source: "scraper"` and `confidence: "low"` unless the email was found verbatim on the page (in which case `confidence: "medium"`).
 
 ---
 
 ## Template Placeholders
 
-| Placeholder | Value |
+| Placeholder | Resolved value |
 |---|---|
-| `{{first_name}}` | Contact's first name (or "Hi there" if unknown) |
-| `{{full_name}}` | Contact's full name |
+| `{{first_name}}` | First name of contact. If full name is available but first name is not separately stored, use the first whitespace-delimited token of the full name. If no name at all: `"there"` |
+| `{{full_name}}` | Full name of contact. If no name: `"there"` |
 | `{{company_name}}` | Company name from CSV |
-| `{{exec_title}}` | Contact's title |
+| `{{exec_title}}` | Contact's title. If unknown: `"your team"` |
 | `{{sender_name}}` | From `SENDER_NAME` env var |
 | `{{sender_email}}` | From `SENDER_EMAIL` env var |
 
-Subject line also supports placeholders.
+Subject line also supports placeholders. The default template should use either `{{first_name}}` or `{{full_name}}` in the greeting — not both — since they may resolve identically when the name is unknown.
+
+---
+
+## Personal Domain Blocklist
+
+Applied to the **contact's email address domain** (not the company's domain column). Contacts on these domains are skipped:
+
+```
+gmail.com, yahoo.com, yahoo.co.uk, hotmail.com, hotmail.co.uk,
+outlook.com, live.com, icloud.com, me.com, mac.com,
+protonmail.com, proton.me, aol.com, msn.com, ymail.com
+```
 
 ---
 
 ## Zoho Auth Setup
 
 `setup-zoho-auth.js` is a one-time script that:
-1. Prompts the user to open a browser URL for Zoho account authorization
-2. Receives the authorization code via terminal input
+1. Prints a browser URL for the user to open and authorize their Zoho account
+2. Prompts for the resulting authorization code
 3. Exchanges it for `access_token` + `refresh_token`
-4. Writes credentials into `.env`
+4. Writes `ZOHO_CLIENT_ID`, `ZOHO_CLIENT_SECRET`, `ZOHO_REFRESH_TOKEN`, and `ZOHO_ACCOUNT_ID` into `.env`
 
-At runtime, `zoho-auth.js` uses the stored refresh token to obtain a fresh access token before each batch. Tokens expire after 1 hour — refresh is fully automatic after initial setup.
+At runtime, `zoho-auth.js` calls the Zoho token refresh endpoint once at startup (before any company is processed). If the refresh fails for any reason, the run halts immediately with a clear error — no contacts are looked up and no emails are sent.
+
+**In dry-run mode:** The token refresh is skipped entirely and Zoho credentials are not validated. The run proceeds regardless of whether valid Zoho credentials exist in `.env`.
+
+---
+
+## Apollo and Hunter Error Handling
+
+| Error | Behavior |
+|---|---|
+| Apollo 401/403 | Log warning `"Apollo auth failed — check APOLLO_API_KEY"`, fall through to Hunter |
+| Apollo 429/5xx/network | Log warning with status code, fall through to Hunter |
+| Hunter 401/403 | Log warning `"Hunter auth failed — check HUNTER_API_KEY"`, fall through to scraper |
+| Hunter 429/5xx/network | Log warning with status code, fall through to scraper |
+
+These are per-company decisions and do not halt the run. Persistent auth failures will produce a warning log entry for every company.
 
 ---
 
@@ -168,7 +265,7 @@ SENDER_EMAIL=you@yourdomain.com
 # Template path (relative to project root)
 TEMPLATE_PATH=templates/default.txt
 
-# Rate limiting (seconds between sends)
+# Rate limiting: seconds between sends (0–300, default 30)
 SEND_DELAY_SECONDS=30
 ```
 
@@ -178,12 +275,13 @@ SEND_DELAY_SECONDS=30
 
 ### `state/outreach_log.json`
 
-Append-only array of all send attempts:
+JSON array at `state/outreach_log.json`. On startup, `logger.js` reads the file (or initializes an empty array if absent), pushes new entries, and writes the full array back after each entry is added.
 
 ```json
 [
   {
     "company": "Sakura Sushi Bar",
+    "slug": "sakura-sushi-bar",
     "contact_attempted": "Kenji Tanaka",
     "email": "kenji@sakurasushi.com",
     "priority_level": 1,
@@ -193,11 +291,21 @@ Append-only array of all send attempts:
 ]
 ```
 
-Statuses: `sent`, `bounced`, `failed`, `dry_run`, `skipped_personal_domain`
+**Field rules for edge-case statuses:**
+
+| Status | `contact_attempted` | `email` | `priority_level` |
+|---|---|---|---|
+| `sent` / `bounced` / `failed` / `dry_run` | Contact's full name string | Contact's email string | Integer |
+| `skipped_personal_domain` | Contact's full name string | Contact's email string | Integer |
+| `no_contacts_found` | `null` | `null` | `null` |
+
+Valid statuses: `sent`, `bounced`, `failed`, `dry_run`, `skipped_personal_domain`, `no_contacts_found`
+
+Note: `all_contacts_exhausted` and `no_valid_email_found` are company-level reasons stored only in `state/failed/{slug}.json` — they are **not** log entry statuses. The per-contact log entries (bounced/failed/skipped) already capture the individual outcomes.
 
 ### `state/contacts/{slug}.json`
 
-Ranked contact list for a company:
+Ranked contact list (with `priority` field). Written before the send loop; contains the already-ranked output from `ranker.js`.
 
 ```json
 [
@@ -212,19 +320,55 @@ Ranked contact list for a company:
 ]
 ```
 
+### `state/failed/{slug}.json`
+
+Written when a company ends with no successful send:
+
+```json
+{
+  "company": "Sakura Sushi Bar",
+  "slug": "sakura-sushi-bar",
+  "reason": "all_contacts_exhausted",
+  "contacts_tried": 3,
+  "timestamp": "2026-03-19T14:35:00Z"
+}
+```
+
+`reason` values:
+- `no_contacts_found` — all three lookup sources returned nothing
+- `all_contacts_exhausted` — at least one send was attempted but all bounced or failed
+- `no_valid_email_found` — contacts were found but all had personal domain emails
+
+`contacts_tried`: count of contacts for which a send was attempted (personal-domain skips do not count).
+
+### `state/failed_summary.txt`
+
+Written once at the **end of the run** (not incrementally). Contains one company name per line for every company that ended in any failure reason:
+
+```
+Joe's Pizza Ithaca
+Sakura Sushi Bar
+Blue Ridge Roofing
+```
+
 ---
 
-## Error Handling
+## Error Handling Summary
 
 | Failure | Behavior |
 |---|---|
-| Apollo API error / rate limit | Log warning, fall through to Hunter |
-| Hunter API error | Log warning, fall through to scraper |
-| Scraper finds nothing | Log `no_contacts_found`, write to `state/failed/` |
-| Zoho send 4xx (bad address) | Mark `bounced`, try next contact |
-| Zoho send 5xx / network error | Retry once after 10s, then mark `failed`, try next contact |
-| All contacts exhausted | Write to `state/failed/`, include in final summary |
-| Personal email detected | Mark `skipped_personal_domain`, try next contact |
+| Apollo 401/403 | Log warning, fall through to Hunter |
+| Apollo 429/5xx/network | Log warning, fall through to Hunter |
+| Hunter 401/403 | Log warning, fall through to scraper |
+| Hunter 429/5xx/network | Log warning, fall through to scraper |
+| All sources return nothing | `no_contacts_found`, write `state/failed/` |
+| Zoho token refresh failure (startup) | **Halt entire run** — no lookups or sends |
+| Zoho 401/403 (any attempt or retry) | **Halt entire run** |
+| Zoho 422 | Mark `bounced`, try next contact |
+| Zoho 429 | Wait 60s, retry once; if still 429: `failed`, next contact |
+| Zoho 5xx/network | Retry once after 10s; if still fails: `failed`, next contact |
+| All contacts exhausted (sends attempted) | `all_contacts_exhausted`, write `state/failed/` |
+| All contacts personal domain | `no_valid_email_found`, write `state/failed/` |
 
 ---
 
@@ -234,31 +378,68 @@ Printed to terminal after all companies are processed:
 
 ```
 ✅ Sent successfully:  12 companies
-⚠️  All contacts exhausted:  3 companies
-   - Joe's Pizza Ithaca
-   - Sakura Sushi Bar
-   - Blue Ridge Roofing
+⚠️  Failed (no email sent):  3 companies
+   - Joe's Pizza Ithaca  [no contacts found]
+   - Sakura Sushi Bar    [all contacts exhausted]
+   - Blue Ridge Roofing  [no valid email found]
 
 📄 Full log: state/outreach_log.json
 📁 Failed details: state/failed/
 ```
 
-Also written to `state/failed_summary.txt` for manual follow-up.
+The "Failed" count includes all three failure reasons: `no_contacts_found`, `all_contacts_exhausted`, and `no_valid_email_found`. Each failed company is listed with its reason in brackets.
+
+`state/failed_summary.txt` is written at this point (end of run), one company name per line.
+
+---
+
+## Acceptance Criteria
+
+A correct run against a 3-row CSV (`CompanyA` with findable exec, `CompanyB` with no contacts, `CompanyC` with personal-domain-only contacts) produces:
+
+1. `state/outreach_log.json` contains exactly 3 entries:
+   - CompanyA: `status: "sent"`, `contact_attempted` and `email` populated
+   - CompanyB: `status: "no_contacts_found"`, `contact_attempted: null`, `email: null`
+   - CompanyC: one entry per contact tried, each with `status: "skipped_personal_domain"`
+2. `state/contacts/company-a.json` exists and contains a ranked contact list
+3. `state/contacts/company-b.json` does NOT exist (no contacts found)
+4. `state/failed/company-b.json` exists with `reason: "no_contacts_found"`
+5. `state/failed/company-c.json` exists with `reason: "no_valid_email_found"`
+6. `state/failed_summary.txt` contains exactly two lines: `CompanyB` and `CompanyC`
+7. Terminal summary shows `Sent successfully: 1` and `Failed (no email sent): 2`, listing CompanyB with `[no contacts found]` and CompanyC with `[no valid email found]`
+8. Only one email was sent total (to CompanyA's highest-priority contact)
+9. At least 30 seconds elapsed between any two actual sends (only relevant if >1 company sends)
+
+**Dry-run acceptance:** Same CSV with `--dry-run`:
+- No emails sent (Zoho API never called)
+- `state/contacts/` files still written
+- `outreach_log.json` entry for CompanyA has `status: "dry_run"`
+- `state/failed/` files still written for CompanyB and CompanyC
+- Run completes without Zoho token refresh
 
 ---
 
 ## Per-Module Testing
 
-Each module supports direct invocation for smoke testing:
+Each module supports direct invocation via `process.argv`. All exit 0 on success, non-zero on error, and print to stdout.
 
 ```bash
+# Contact lookup — prints raw (unranked) contact array as JSON
 node src/contacts/apollo.js "Sakura Sushi Bar"
 node src/contacts/hunter.js sakurasushi.com
-node src/contacts/scraper.js "Sakura Sushi Bar"
-node src/email/personalizer.js  # prints a sample personalized email
-```
+node src/contacts/scraper.js "Sakura Sushi Bar"                 # domain derived via web search
+node src/contacts/scraper.js "Sakura Sushi Bar" sakurasushi.com  # domain provided as second arg
 
-Dry-run mode (`--dry-run`) runs the full pipeline without sending, logging attempts as `dry_run`.
+# Ranking — accepts path to a raw (unranked) JSON file, prints ranked array as JSON
+# The input file must be an array of objects with at minimum: name, title, email, source, confidence
+node src/contacts/ranker.js /tmp/raw-contacts.json
+
+# Personalization — prints a personalized email to stdout using sample values and TEMPLATE_PATH from .env
+node src/email/personalizer.js
+
+# Token refresh — prints a fresh Zoho access token string to stdout
+node src/email/zoho-auth.js
+```
 
 ---
 
