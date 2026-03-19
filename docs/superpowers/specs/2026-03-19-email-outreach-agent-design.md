@@ -133,7 +133,7 @@ If all three sources return nothing: log `no_contacts_found` to `outreach_log.js
 
 Ties broken by confidence: `high > medium > low`.
 
-The ranked output (with `priority` field populated) is saved to `state/contacts/{slug}.json` before the send loop begins.
+The ranked output (with `priority` field populated) is saved to `state/contacts/{slug}.json` before the send loop begins. If a file already exists from a prior run, it is overwritten — contacts are always re-fetched and re-ranked on every run.
 
 ### 3. Send Loop
 
@@ -148,10 +148,10 @@ For each contact in ranked order:
 - Send via Zoho Mail API
 - Write a log entry with the outcome:
   - **2xx success** → log `sent`, stop; only one email sent per company
-  - **401 or 403** → halt the entire run immediately (do not log, do not try next); applies whether received on initial attempt or retry
+  - **401 or 403** → halt the entire run immediately (do not log this contact, do not write `state/failed/` for the current company, do not process further companies); applies whether received on initial attempt or retry
   - **422** → log `bounced`, try next contact
-  - **429** → wait 60 seconds, retry the same contact once; still 429 → log `failed`, next; retry yields 401/403 → halt run
-  - **5xx or network error** → retry once after 10s; still fails → log `failed`, next; retry yields 401/403 → halt run
+  - **429** → wait 60 seconds, retry the same contact once; retry returns 2xx → log `sent`, stop; retry returns 401/403 → halt run; retry returns anything else → log `failed`, next contact
+  - **5xx or network error** → retry once after 10 seconds; retry returns 2xx → log `sent`, stop; retry returns 401/403 → halt run; retry returns anything else → log `failed`, next contact
 
 **c. Exhaustion:** If the loop ends without a `sent` entry for this company:
 - If at least one send was attempted (bounced/failed log entries exist for this company): write `state/failed/{slug}.json` with `reason: "all_contacts_exhausted"`; no additional log entry
@@ -160,7 +160,9 @@ For each contact in ranked order:
 
 ### 4. Rate Limiting
 
-Wait `SEND_DELAY_SECONDS` seconds between actual email sends (not between contact lookups, not between retries, not in dry-run mode). Default: 30. Valid range: 0–300. A value of 0 disables the delay.
+The delay fires **between contacts where a send was attempted** — not between retries of the same contact, not after skipped contacts, not in dry-run mode. Specifically: after logging a `sent`, `bounced`, or `failed` entry (i.e. a Zoho send was made), wait `SEND_DELAY_SECONDS` before attempting the next contact or the next company.
+
+Default: 30. Valid range: 0–300. A value of 0 disables the delay.
 
 ---
 
@@ -339,7 +341,7 @@ Written when a company ends with no successful send:
 - `all_contacts_exhausted` — at least one send was attempted but all bounced or failed
 - `no_valid_email_found` — contacts were found but all had personal domain emails
 
-`contacts_tried`: count of contacts for which a send was attempted (personal-domain skips do not count).
+`contacts_tried`: count of contacts for which a Zoho send was attempted (personal-domain skips do not count). For `reason: "no_contacts_found"`, this value is `0`.
 
 ### `state/failed_summary.txt`
 
@@ -412,10 +414,13 @@ A correct run against a 3-row CSV (`CompanyA` with findable exec, `CompanyB` wit
 
 **Dry-run acceptance:** Same CSV with `--dry-run`:
 - No emails sent (Zoho API never called)
-- `state/contacts/` files still written
+- `state/contacts/company-a.json` exists (ranked contacts written)
+- `state/contacts/company-c.json` exists (CompanyC has contacts — they're on personal domains, but ranking still ran and the file was written)
+- `state/contacts/company-b.json` does NOT exist (no contacts found)
 - `outreach_log.json` entry for CompanyA has `status: "dry_run"`
+- `outreach_log.json` entries for CompanyC have `status: "skipped_personal_domain"` (personal domain check still runs in dry-run)
 - `state/failed/` files still written for CompanyB and CompanyC
-- Run completes without Zoho token refresh
+- Run completes without Zoho token refresh, even if Zoho credentials are absent from `.env`
 
 ---
 
