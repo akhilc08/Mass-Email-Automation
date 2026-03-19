@@ -51,6 +51,12 @@ async function main() {
   const accountRes = await fetch('https://mail.zoho.com/api/accounts', {
     headers: { Authorization: `Zoho-oauthtoken ${tokens.access_token}` },
   });
+  if (!accountRes.ok) {
+    console.error(`Account ID fetch failed: HTTP ${accountRes.status}`);
+    const body = await accountRes.text();
+    console.error(body);
+    process.exit(1);
+  }
   const accountData = await accountRes.json();
   const accountId = accountData.data?.[0]?.accountId;
   if (!accountId) {
