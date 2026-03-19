@@ -37,6 +37,11 @@ async function main() {
     process.exit(1);
   }
 
+  if (!fs.existsSync(csvPath)) {
+    console.error(`CSV file not found: ${csvPath}`);
+    process.exit(1);
+  }
+
   // Startup init
   const sendDelaySeconds = clampDelay(process.env.SEND_DELAY_SECONDS);
   const sendDelayMs = sendDelaySeconds * 1000;
@@ -136,6 +141,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error(err.message);
+  console.error(err);
   process.exit(1);
 });
