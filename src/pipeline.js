@@ -53,7 +53,7 @@ async function runPipeline(company, env, deps, opts = {}) {
       company: companyName, slug,
       reason: 'no_contacts_found', contacts_tried: 0, timestamp: nowIso(),
     });
-    return 'no_contacts_found';
+    return { outcome: 'no_contacts_found', contactName: null, contactEmail: null, sentAt: null };
   }
 
   // 2. Rank and save
@@ -77,13 +77,14 @@ async function runPipeline(company, env, deps, opts = {}) {
     }
 
     if (dryRun) {
+      const ts = nowIso();
       logger.append({
         company: companyName, slug,
         contact_attempted: name, email, priority_level: priority,
-        status: 'dry_run', timestamp: nowIso(),
+        status: 'dry_run', timestamp: ts,
       });
       sentCount++;
-      break;
+      return { outcome: 'sent', contactName: name, contactEmail: email, sentAt: ts };
     }
 
     // Personalize
@@ -108,28 +109,29 @@ async function runPipeline(company, env, deps, opts = {}) {
     const { outcome } = await sender({ from: env.senderEmail, to: email, subject, body, attachments: env.attachmentPaths || [] });
     sendAttempts++;
 
-    if (outcome === 'halt') return 'halt';
+    if (outcome === 'halt') return { outcome: 'halt', contactName: null, contactEmail: null, sentAt: null };
 
+    const ts = nowIso();
     const status = outcome === 'sent' ? 'sent' : outcome === 'bounced' ? 'bounced' : 'failed';
     logger.append({
       company: companyName, slug,
       contact_attempted: name, email, priority_level: priority,
-      status, timestamp: nowIso(),
+      status, timestamp: ts,
     });
 
     if (sendDelayMs > 0) await sleep(sendDelayMs);
 
-    if (outcome === 'sent') { sentCount++; break; }
+    if (outcome === 'sent') {
+      return { outcome: 'sent', contactName: name, contactEmail: email, sentAt: ts };
+    }
   }
-
-  if (sentCount > 0) return 'sent';
 
   const reason = sendAttempts > 0 ? 'all_contacts_exhausted' : 'no_valid_email_found';
   state.writeFailed(slug, {
     company: companyName, slug, reason,
     contacts_tried: sendAttempts, timestamp: nowIso(),
   });
-  return reason;
+  return { outcome: reason, contactName: null, contactEmail: null, sentAt: null };
 }
 
 module.exports = { runPipeline };

@@ -154,6 +154,7 @@ async function main() {
   };
 
   const results = { sent: [], failed: [] };
+  const reportRows = [];
 
   for (const row of rows) {
     const companyName = (row.company_name || '').trim();
@@ -165,17 +166,26 @@ async function main() {
 
     console.log(`Processing: ${companyName}`);
 
-    const outcome = await runPipeline(company, env, { logger, state, sender: senderFn, finders }, {
-      dryRun,
-      sendDelayMs: dryRun ? 0 : sendDelayMs,
-    });
+    const { outcome, contactName, contactEmail, sentAt } = await runPipeline(
+      company, env, { logger, state, sender: senderFn, finders },
+      { dryRun, sendDelayMs: dryRun ? 0 : sendDelayMs }
+    );
 
     if (outcome === 'halt') {
       console.error(`Run halted: ${provider} returned 401/403. Check credentials.`);
       process.exit(1);
     }
 
-    if (outcome === 'sent') {
+    const contacted = outcome === 'sent';
+    reportRows.push({
+      organization: companyName,
+      dateContacted: contacted && sentAt ? sentAt.slice(0, 10) : '',
+      contactName: contactName || '',
+      contactEmail: contactEmail || '',
+      status: contacted ? 'Contacted' : 'Not Contacted',
+    });
+
+    if (contacted) {
       results.sent.push(companyName);
     } else {
       results.failed.push({ company: companyName, reason: outcome });
@@ -201,6 +211,15 @@ async function main() {
   console.log('');
   console.log(`📄 Full log: ${LOG_PATH}`);
   console.log(`📁 Failed details: ${path.join(STATE_DIR, 'failed')}/`);
+
+  // Write outreach report CSV
+  const reportPath = path.join(STATE_DIR, 'outreach_report.csv');
+  const csvHeader = 'Organization,Date Contacted,Contact Name,Contact Email,Status';
+  const csvRows = reportRows.map(r => [
+    r.organization, r.dateContacted, r.contactName, r.contactEmail, r.status,
+  ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+  fs.writeFileSync(reportPath, [csvHeader, ...csvRows].join('\n') + '\n');
+  console.log(`📊 Report: ${reportPath}`);
 }
 
 main().catch(err => {
