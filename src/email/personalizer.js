@@ -41,6 +41,9 @@ async function personalize(templatePath, promptPath, contact, env) {
     system_prompt: systemPrompt,
     context_files: env.context_files || '',
     user_prompt: userPrompt,
+    company_research: env.company_research
+      ? `COMPANY RESEARCH — use this to personalize the email:\n\n${env.company_research}\n\n---\n`
+      : '',
     // legacy placeholder — kept for backward compatibility with old prompt templates
     voice_profile: voiceDna,
     template,

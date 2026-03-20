@@ -72,15 +72,17 @@ async function main() {
   const args = process.argv.slice(2);
   const csvPath = args.find(a => !a.startsWith('--'));
   const dryRun = args.includes('--dry-run');
+  const webSearch = args.includes('--web-search');
   const provider = resolveProvider(args);
   const { auth, sender } = loadProvider(provider);
 
   if (!csvPath) {
-    console.error('Usage: node run.js companies.csv [--dry-run] [--provider zoho|gmail|outlook] [--context-from-files file1.txt,file2.txt]');
+    console.error('Usage: node run.js companies.csv [--dry-run] [--provider zoho|gmail|outlook] [--web-search] [--context-from-files file1.txt,file2.txt]');
     process.exit(1);
   }
 
   console.log(`Provider: ${provider}`);
+  if (webSearch) console.log('Web search: enabled');
 
   // Parse --context-from-files / --context_from_files
   const contextFlag = args.find(a => a.startsWith('--context-from-files') || a.startsWith('--context_from_files'));
@@ -159,6 +161,7 @@ async function main() {
     voiceProfilePath: process.env.VOICE_PROFILE_PATH || '',
     attachmentPaths,
     contextFiles: contextFilesContent,
+    webSearch,
   };
 
   const finders = {

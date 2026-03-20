@@ -1,5 +1,6 @@
 const rankContacts = require('./contacts/ranker');
 const personalize = require('./email/personalizer');
+const { researchCompany } = require('./email/researcher');
 
 const PERSONAL_DOMAINS = new Set([
   'gmail.com', 'yahoo.com', 'yahoo.co.uk', 'hotmail.com', 'hotmail.co.uk',
@@ -92,12 +93,19 @@ async function runPipeline(company, env, deps, opts = {}) {
     let body = `Hi ${name || 'there'}`;
     if (env.templatePath && env.promptPath) {
       try {
+        let companyResearch = '';
+        if (env.webSearch) {
+          console.log(`  Researching ${companyName}...`);
+          companyResearch = await researchCompany(companyName, domain);
+        }
+
         const p = await personalize(env.templatePath, env.promptPath, contact, {
           company_name: companyName,
           sender_name: env.senderName,
           sender_email: env.senderEmail,
           voice_profile_path: env.voiceProfilePath,
           context_files: env.contextFiles || '',
+          company_research: companyResearch,
         });
         subject = p.subject;
         body = p.body;

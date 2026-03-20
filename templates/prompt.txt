@@ -5,6 +5,7 @@ RECIPIENT:
 - Title: {{exec_title}}
 - Company: {{company_name}}
 
+{{company_research}}
 ---
 
 VOICE DNA — match this exactly:
