@@ -50,54 +50,69 @@ You only need to configure one provider. Run the setup script for whichever you 
 
 #### Zoho Mail
 
+Before running the setup script, create a Zoho OAuth client:
+
+1. Go to [Zoho API Console](https://api-console.zoho.com/) and sign in
+2. Create a new client → **Server-based Applications**
+3. Set the redirect URI to `https://localhost`
+4. Copy the **Client ID** and **Client Secret**
+5. Add them to your `.env`:
+   ```
+   ZOHO_CLIENT_ID=your_client_id
+   ZOHO_CLIENT_SECRET=your_client_secret
+   ```
+
+Then run the setup script:
+
 ```bash
 node setup-zoho-auth.js
 ```
 
-Follow the prompts. Your `.env` will be updated with `ZOHO_REFRESH_TOKEN` and `ZOHO_ACCOUNT_ID`.
-
-Additional env vars needed:
-
-| Variable | Description |
-|---|---|
-| `ZOHO_CLIENT_ID` | Zoho OAuth client ID |
-| `ZOHO_CLIENT_SECRET` | Zoho OAuth client secret |
-| `ZOHO_REFRESH_TOKEN` | Set automatically by setup script |
-| `ZOHO_ACCOUNT_ID` | Set automatically by setup script |
+It will open an auth URL, exchange the code for tokens, and automatically write `ZOHO_REFRESH_TOKEN` and `ZOHO_ACCOUNT_ID` to your `.env`.
 
 #### Gmail
+
+Before running the setup script, create Google OAuth credentials:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a project → APIs & Services → Enable **Gmail API**
+3. OAuth consent screen → External → add your email as a test user
+4. Credentials → Create OAuth 2.0 Client ID → **Desktop app**
+5. Set authorized redirect URI: `http://localhost:8765/callback`
+6. Add to your `.env`:
+   ```
+   GOOGLE_CLIENT_ID=your_client_id
+   GOOGLE_CLIENT_SECRET=your_client_secret
+   ```
+
+Then run the setup script:
 
 ```bash
 node setup-gmail-auth.js
 ```
 
-You need Google OAuth credentials (same ones used for voice profile setup, if you've already done that):
+It will open a browser auth flow and write `GMAIL_REFRESH_TOKEN` to your `.env`.
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a project → APIs & Services → Enable Gmail API
-3. OAuth consent screen → External → add your email as a test user
-4. Credentials → Create OAuth 2.0 Client ID → Desktop app
-5. Set authorized redirect URI: `http://localhost:8765/callback`
-6. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to your `.env`
-
-The script will open a browser, ask you to authorize, and write `GMAIL_REFRESH_TOKEN` to your `.env`.
+> **Note:** `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are shared between Gmail sending and the voice profile setup script. If you already ran `setup-voice-profile.js`, you have them — just run `setup-gmail-auth.js` to get the send-scoped token.
 
 #### Outlook / Microsoft 365
+
+Before running the setup script, create an Azure App Registration:
+
+1. Go to [Azure Portal](https://portal.azure.com/) → Azure Active Directory → App registrations
+2. New registration → name it anything → Account type: **Accounts in any organizational directory and personal Microsoft accounts**
+3. Redirect URI → **Web** → `http://localhost:8765/callback`
+4. API permissions → Add → Microsoft Graph → Delegated → `Mail.Send` → Grant admin consent
+5. Certificates & secrets → New client secret → copy the **Value** (not the ID)
+6. Overview → copy the **Application (client) ID**
+
+Then run the setup script:
 
 ```bash
 node setup-outlook-auth.js
 ```
 
-You need an Azure App Registration:
-
-1. Go to [Azure Portal](https://portal.azure.com/) → Azure Active Directory → App registrations
-2. New registration → name it anything → Account type: personal Microsoft accounts (or both)
-3. Redirect URI → Web → `http://localhost:8765/callback`
-4. API permissions → Add → Microsoft Graph → Delegated → `Mail.Send`
-5. Certificates & secrets → New client secret → copy the **Value** (not the ID)
-6. Overview → copy the **Application (client) ID**
-
-The script will open a browser, ask you to authorize, and write `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, and `MS_REFRESH_TOKEN` to your `.env`.
+It will open a browser auth flow and write `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, and `MS_REFRESH_TOKEN` to your `.env`.
 
 ### 4. Build your voice DNA
 
