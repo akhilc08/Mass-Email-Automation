@@ -191,11 +191,13 @@ async function main() {
     if (!companyName) continue;
 
     const slug = uniqueSlug(companyName, takenSlugs);
-    const company = { name: companyName, domain, slug };
+    const contactEmail = (row.contact_email || '').trim();
+    const contactName = (row.contact_name || '').trim();
+    const company = { name: companyName, domain, slug, contactEmail, contactName };
 
     console.log(`Processing: ${companyName}`);
 
-    const { outcome, contactName, contactEmail, sentAt } = await runPipeline(
+    const { outcome, contactName: sentName, contactEmail: sentEmail, sentAt } = await runPipeline(
       company, env, { logger, state, sender: senderFn, finders },
       { dryRun, sendDelayMs: dryRun ? 0 : sendDelayMs }
     );
@@ -209,8 +211,8 @@ async function main() {
     reportRows.push({
       organization: companyName,
       dateContacted: contacted && sentAt ? sentAt.slice(0, 10) : '',
-      contactName: contactName || '',
-      contactEmail: contactEmail || '',
+      contactName: sentName || '',
+      contactEmail: sentEmail || '',
       status: contacted ? 'Contacted' : 'Not Contacted',
     });
 

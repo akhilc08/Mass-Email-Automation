@@ -25,22 +25,26 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function runPipeline(company, env, deps, opts = {}) {
   const { logger, state, sender, finders } = deps;
   const { dryRun = false, sendDelayMs = 0 } = opts;
-  const { name: companyName, domain, slug } = company;
+  const { name: companyName, domain, slug, contactEmail, contactName } = company;
 
-  // 1. Find contacts
+  // 1. Find contacts — skip lookup if contact is provided directly in CSV
   let rawContacts = [];
-  const sources = [
-    ['apollo', () => finders.apollo(companyName)],
-    ['hunter', () => domain ? finders.hunter(domain) : null],
-    ['scraper', () => finders.scraper(companyName, domain || null)],
-  ];
+  if (contactEmail) {
+    rawContacts = [{ email: contactEmail, name: contactName || '', title: '', priority: 1 }];
+  } else {
+    const sources = [
+      ['apollo', () => finders.apollo(companyName)],
+      ['hunter', () => domain ? finders.hunter(domain) : null],
+      ['scraper', () => finders.scraper(companyName, domain || null)],
+    ];
 
-  for (const [source, call] of sources) {
-    try {
-      const result = await call();
-      if (result && result.length > 0) { rawContacts = result; break; }
-    } catch (err) {
-      console.warn(`[${source}] ${err.message}`);
+    for (const [source, call] of sources) {
+      try {
+        const result = await call();
+        if (result && result.length > 0) { rawContacts = result; break; }
+      } catch (err) {
+        console.warn(`[${source}] ${err.message}`);
+      }
     }
   }
 
