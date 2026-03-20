@@ -1,40 +1,50 @@
 # Who I am
-I'm Saiakhil Chilaka, a Computer Science student at Cornell University reaching out to people at startups for informational interviews. This is not a sales email — I'm genuinely trying to learn about the company and the person's experience there.
+I'm Saiakhil Chilaka, a Computer Science student at Cornell University reaching out to people at startups for informational interviews. This is not a sales email — I'm trying to learn about the company and the person's experience there.
 
 # Purpose of this email
 Networking / informational interview outreach. The ask is a brief 15-30 minute call. Keep the tone warm, curious, and respectful — not transactional.
 
 # How to fill in the template
-The template has two placeholders you must fill in. Replace them with the most specific, honest content you can based on the recipient and company:
+The template has two placeholders you must fill in. Replace them with the most specific content you can, using the COMPANY RESEARCH section if it's available.
 
 ## {{ONE LINE ABOUT RELEVANT PERSONAL EXPERIENCE FROM RESUME}}
-Write one concise sentence connecting my background to the recipient's company or industry. Use context from my resume/context files if provided. Examples of what this should look like:
-- "I've been building a full-stack web app using React and Node.js and have interned at a fintech startup this past summer."
-- "I've spent the last year working on ML projects in NLP and recently completed a research assistantship in Cornell's AI lab."
-- "I've built several side projects in mobile development and am currently leading a team in Cornell's startup incubator."
+Write one concise sentence connecting my background to the recipient's company or industry. Use my resume or context files if provided. Match my experience to what the company actually works on.
+
+Examples:
+- "Most of my recent work has been in NLP and I've been following the space your team is operating in."
+- "Last semester I built a computer vision pipeline for a course project, so the work you're doing in that area caught my attention."
+- "I've been building full-stack apps with React and Node.js and interned at a B2B SaaS company this past summer."
 
 Rules:
 - One sentence only
-- Must feel genuinely relevant to the company, not copy-pasted
-- If no context file is provided, use a reasonable generic CS student background (coursework, projects, hackathons)
-- Do not fabricate specific company names or internship names not provided
+- Tie it specifically to what this company does — not a generic CS background sentence
+- If no resume is provided, use a reasonable CS student background (coursework, side projects, hackathons)
+- Do not fabricate specific company names or internship names
 
 ## {{INDUSTRY + SPECIFIC INFORMATION ABOUT THE STARTUP}}
-Write a specific, honest sentence about what genuinely interests me about this company or its space. Do not use generic phrases. Examples:
-- "the way your team is applying computer vision to reduce food waste in supply chains"
-- "how you're building developer tooling that removes friction from the API integration workflow"
-- "the intersection of AI and legal tech you're operating in, especially your approach to contract analysis"
+Write a specific phrase or sentence about what this company is actually building. Pull from the COMPANY RESEARCH section if available. Do not describe the industry in general — describe what THIS company is doing.
+
+Examples of what good looks like:
+- "the way you're using LLMs to automate contract review for small law firms"
+- "your approach to reducing food waste through real-time supply chain visibility"
+- "how you're building infrastructure for real-time multiplayer experiences without requiring game studios to manage servers"
+
+Examples of what bad looks like (do not write these):
+- "the intersection of AI and tech" — too vague
+- "what you're building in the startup space" — meaningless
+- "your innovative approach to your industry" — filler
 
 Rules:
-- Be specific to the company — not the industry in general
-- If you don't have specific information, focus on the most interesting aspect of what the company does based on its name and domain
-- Do not say "I've always been passionate about X" — that's filler
-- One sentence or a short phrase, not a paragraph
+- Be specific to what the company actually does, based on research
+- If research shows the company's product clearly, reference that product directly
+- If research is thin, use the most specific inference possible from the company name and domain
+- One phrase or short sentence — not a full paragraph
+- Do not use the words: innovative, passionate, excited, groundbreaking, genuinely
 
 # What NOT to do
 - Do not change the structure of the email — preserve every line exactly, only fill in the two placeholders
-- Do not add extra paragraphs or talking points
-- Do not mention anything about pricing, sales, or pitching
-- Do not use the words: leverage, synergy, passionate, excited, thrilled, delighted, groundbreaking, innovative
-- Do not start the filled placeholder with "I am" or "I have been" — vary the structure
+- Do not add extra paragraphs, bullet points, or talking points
+- Do not mention pricing, sales, or pitching
+- Do not use: leverage, synergy, passionate, excited, thrilled, delighted, groundbreaking, innovative, genuinely
+- Do not start either placeholder with "I am" or "I have been" — vary the sentence structure
 - The signature block (Computer Science / Cornell University / LinkedIn) must remain exactly as written
