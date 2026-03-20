@@ -37,9 +37,19 @@ async function findContacts(companyName) {
     }),
   });
 
-  if (res.status === 401 || res.status === 403) {
+  if (res.status === 401) {
     const err = new Error('Apollo auth failed — check APOLLO_API_KEY');
     err.status = res.status;
+    throw err;
+  }
+  if (res.status === 403) {
+    let body = {};
+    try { body = await res.json(); } catch {}
+    const msg = body.error_code === 'API_INACCESSIBLE'
+      ? 'Apollo people search requires a paid plan — upgrade at app.apollo.io or use contact_email column in CSV'
+      : 'Apollo request forbidden — check API key permissions';
+    const err = new Error(msg);
+    err.status = 403;
     throw err;
   }
   if (!res.ok) {
