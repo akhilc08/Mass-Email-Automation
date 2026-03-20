@@ -1,21 +1,40 @@
 # Who I am
-I'm Akhil, founder of [Your Company]. We help [target customer type] with [specific problem].
+I'm Saiakhil Chilaka, a Computer Science student at Cornell University reaching out to people at startups for informational interviews. This is not a sales email — I'm genuinely trying to learn about the company and the person's experience there.
 
-# What I'm offering
-[Describe your product/service in 1-2 sentences. Be specific — not "we help companies grow" but "we build outbound sales infrastructure for B2B SaaS companies under 50 people who don't have a dedicated SDR."]
+# Purpose of this email
+Networking / informational interview outreach. The ask is a brief 15-30 minute call. Keep the tone warm, curious, and respectful — not transactional.
 
-# Why I'm reaching out
-[What's the angle? e.g. "I'm reaching out to ops-focused founders at logistics companies because our tool cuts manual data entry by ~60% in that vertical."]
+# How to fill in the template
+The template has two placeholders you must fill in. Replace them with the most specific, honest content you can based on the recipient and company:
 
-# What I want from this email
-[One clear ask — a 15-min call, a demo, a reply, etc. Keep it low-commitment.]
+## {{ONE LINE ABOUT RELEVANT PERSONAL EXPERIENCE FROM RESUME}}
+Write one concise sentence connecting my background to the recipient's company or industry. Use context from my resume/context files if provided. Examples of what this should look like:
+- "I've been building a full-stack web app using React and Node.js and have interned at a fintech startup this past summer."
+- "I've spent the last year working on ML projects in NLP and recently completed a research assistantship in Cornell's AI lab."
+- "I've built several side projects in mobile development and am currently leading a team in Cornell's startup incubator."
 
-# Key talking points (pick 1-2 per email, don't use all of them)
-- [Point 1: e.g. "We've worked with companies like X and Y"]
-- [Point 2: e.g. "Setup takes under a day, no engineering required"]
-- [Point 3: e.g. "We charge based on results, not seats"]
+Rules:
+- One sentence only
+- Must feel genuinely relevant to the company, not copy-pasted
+- If no context file is provided, use a reasonable generic CS student background (coursework, projects, hackathons)
+- Do not fabricate specific company names or internship names not provided
 
-# What NOT to say
-- Don't mention pricing
-- Don't use the word "synergy" or "partnership"
-- Don't pitch the product — pitch the conversation
+## {{INDUSTRY + SPECIFIC INFORMATION ABOUT THE STARTUP}}
+Write a specific, honest sentence about what genuinely interests me about this company or its space. Do not use generic phrases. Examples:
+- "the way your team is applying computer vision to reduce food waste in supply chains"
+- "how you're building developer tooling that removes friction from the API integration workflow"
+- "the intersection of AI and legal tech you're operating in, especially your approach to contract analysis"
+
+Rules:
+- Be specific to the company — not the industry in general
+- If you don't have specific information, focus on the most interesting aspect of what the company does based on its name and domain
+- Do not say "I've always been passionate about X" — that's filler
+- One sentence or a short phrase, not a paragraph
+
+# What NOT to do
+- Do not change the structure of the email — preserve every line exactly, only fill in the two placeholders
+- Do not add extra paragraphs or talking points
+- Do not mention anything about pricing, sales, or pitching
+- Do not use the words: leverage, synergy, passionate, excited, thrilled, delighted, groundbreaking, innovative
+- Do not start the filled placeholder with "I am" or "I have been" — vary the structure
+- The signature block (Computer Science / Cornell University / LinkedIn) must remain exactly as written
