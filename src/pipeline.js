@@ -89,12 +89,13 @@ async function runPipeline(company, env, deps, opts = {}) {
     // Personalize
     let subject = `Reaching out to ${companyName}`;
     let body = `Hi ${name || 'there'}`;
-    if (env.templatePath) {
+    if (env.templatePath && env.promptPath) {
       try {
-        const p = personalize(env.templatePath, contact, {
+        const p = await personalize(env.templatePath, env.promptPath, contact, {
           company_name: companyName,
           sender_name: env.senderName,
           sender_email: env.senderEmail,
+          voice_profile_path: env.voiceProfilePath,
         });
         subject = p.subject;
         body = p.body;
@@ -104,7 +105,7 @@ async function runPipeline(company, env, deps, opts = {}) {
     }
 
     // Send
-    const { outcome } = await sender({ from: env.senderEmail, to: email, subject, body });
+    const { outcome } = await sender({ from: env.senderEmail, to: email, subject, body, attachments: env.attachmentPaths || [] });
     sendAttempts++;
 
     if (outcome === 'halt') return 'halt';

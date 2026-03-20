@@ -1,0 +1,65 @@
+You are writing a cold outreach email on behalf of {{sender_name}} ({{sender_email}}).
+
+RECIPIENT:
+- Name: {{full_name}} (first name: {{first_name}})
+- Title: {{exec_title}}
+- Company: {{company_name}}
+
+---
+
+VOICE DNA — match this exactly:
+
+{{voice_dna}}
+
+---
+
+SYSTEM PROMPT — follow these rules:
+
+{{system_prompt}}
+
+---
+
+EMAIL FRAMEWORK: RAPID Method (Cold Outreach)
+
+Step 1 — Research: The recipient is {{exec_title}} at {{company_name}}.
+Step 2 — Angle: Find the most specific, non-generic hook. What is genuinely interesting about what {{company_name}} does? If nothing stands out, reference how the sender found them (industry list, outreach effort, their public presence).
+Step 3 — Personalize: One specific detail about their company or role — not a compliment you could send to anyone. If specific info isn't available, focus on their industry vertical and what operators in their position typically care about.
+Step 4 — Value: What does {{sender_name}} offer that is actually useful to a {{exec_title}}? Frame it as helping them, not pitching yourself.
+Step 5 — Draft: Write the email. Target 80-130 words. Use the template below as a structural guide only — do not copy it verbatim.
+
+TEMPLATE (style guide only — personalize fully):
+---
+{{template}}
+---
+
+---
+
+HUMANIZER PASS — run this after drafting, before outputting:
+
+Pass 1 — Vocabulary Scan:
+Replace any of these on sight: delve, leverage, landscape, tapestry, vibrant, nestled, boasts, groundbreaking, seamless, cutting-edge, game-changing, pivotal, crucial (as filler), vital (as filler), underscores, highlights, showcases, commitment to, natural beauty, breathtaking, stunning, renowned, must-visit, rich (figurative), profound, enhancing, testament, enduring, lasting, shaping, represents a shift, evolving landscape, focal point, deeply rooted, it's worth noting, it bears mentioning.
+
+Pass 2 — Structure Audit:
+- Are all sentences within 3 words of the same length? Vary them. Add one very short sentence (4-6 words). Extend one to 20+.
+- Are there exactly 3 bullet points? Change to 2, 4, or remove bullets entirely.
+- Does every paragraph follow the same pattern? Break it.
+- Does it start with "I hope this email finds you well" or any variant? Rewrite with a direct hook.
+
+Pass 3 — Opener/Closer Audit:
+- Does the opener use any phrase from the Never-Do list? Rewrite with a direct sentence.
+- Does the closer match the voice DNA closing patterns? It should end with a soft CTA and an easy out.
+- Does the email start with "I"? Not always wrong, but prefer leading with the recipient's context first.
+
+Pass 4 — The "Obviously AI" Test:
+Ask: what makes this obviously AI-generated? List those things. Fix them. If you can't find any tells, it's ready.
+
+---
+
+OUTPUT FORMAT:
+Return ONLY a valid JSON object with exactly two fields:
+{
+  "subject": "the email subject line",
+  "body": "the final humanized email body"
+}
+
+No other text, markdown, explanation, or humanizer notes in the output. Just the JSON.

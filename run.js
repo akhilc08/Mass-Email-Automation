@@ -42,6 +42,21 @@ async function main() {
     process.exit(1);
   }
 
+  // Parse and validate attachment paths
+  const attachmentPaths = (process.env.ATTACHMENT_PATHS || '')
+    .split(',')
+    .map(p => p.trim())
+    .filter(Boolean);
+  for (const p of attachmentPaths) {
+    if (!fs.existsSync(p)) {
+      console.error(`Attachment file not found: ${p}`);
+      process.exit(1);
+    }
+  }
+  if (attachmentPaths.length > 0) {
+    console.log(`Attachments: ${attachmentPaths.map(p => path.basename(p)).join(', ')}`);
+  }
+
   // Startup init
   const sendDelaySeconds = clampDelay(process.env.SEND_DELAY_SECONDS);
   const sendDelayMs = sendDelaySeconds * 1000;
@@ -69,7 +84,10 @@ async function main() {
   const env = {
     senderEmail: process.env.SENDER_EMAIL,
     senderName: process.env.SENDER_NAME,
-    templatePath: process.env.TEMPLATE_PATH || 'templates/default.txt',
+    templatePath: process.env.TEMPLATE_PATH || 'templates/template.txt',
+    promptPath: process.env.PROMPT_PATH || 'templates/prompt.txt',
+    voiceProfilePath: process.env.VOICE_PROFILE_PATH || '',
+    attachmentPaths,
   };
 
   const finders = {

@@ -1,5 +1,5 @@
 {
-  "name": "ac-solutions-email-automation",
+  "name": "mass-email-automation",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/akhilc08/AC-Solutions-Email-Automation#readme",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "cheerio": "^1.2.0",
     "csv-parse": "^6.2.0",
     "dotenv": "^17.3.1"

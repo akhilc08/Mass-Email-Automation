@@ -1,3 +1,4 @@
 .env
 /state/
 node_modules/
+docs/superpowers/

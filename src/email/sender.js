@@ -1,8 +1,40 @@
+const fs = require('fs');
+const path = require('path');
+
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function uploadAttachment(token, accountId, filePath) {
+  const buffer = fs.readFileSync(filePath);
+  const fileName = path.basename(filePath);
+
+  const formData = new FormData();
+  formData.append('file', new Blob([buffer]), fileName);
+
+  const res = await fetch(
+    `https://mail.zoho.com/api/v1/accounts/${accountId}/attachments`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Zoho-oauthtoken ${token}` },
+      body: formData,
+    }
+  );
+
+  if (!res.ok) throw new Error(`Attachment upload failed (${res.status}): ${fileName}`);
+  const json = await res.json();
+  return json.data; // { storeId, fileName, fileSize }
+}
 
 async function sendEmail(token, accountId, mail, opts = {}) {
   const delay429 = opts.delay429 ?? 60_000;
   const delay5xx = opts.delay5xx ?? 10_000;
+
+  // Upload attachments before sending
+  let mailAttachments;
+  if (mail.attachments && mail.attachments.length > 0) {
+    mailAttachments = await Promise.all(
+      mail.attachments.map(p => uploadAttachment(token, accountId, p))
+    );
+  }
 
   const doFetch = () => fetch(
     `https://mail.zoho.com/api/v1/accounts/${accountId}/messages/send`,
@@ -17,6 +49,7 @@ async function sendEmail(token, accountId, mail, opts = {}) {
         toAddress: mail.to,
         subject: mail.subject,
         content: mail.body,
+        ...(mailAttachments ? { mailAttachments } : {}),
       }),
     }
   );
@@ -39,4 +72,4 @@ async function sendEmail(token, accountId, mail, opts = {}) {
   return { outcome: 'failed' };
 }
 
-module.exports = { sendEmail };
+module.exports = { sendEmail, uploadAttachment };
