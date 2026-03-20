@@ -97,6 +97,7 @@ async function runPipeline(company, env, deps, opts = {}) {
           sender_name: env.senderName,
           sender_email: env.senderEmail,
           voice_profile_path: env.voiceProfilePath,
+          context_files: env.contextFiles || '',
         });
         subject = p.subject;
         body = p.body;

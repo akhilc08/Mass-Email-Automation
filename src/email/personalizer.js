@@ -35,6 +35,7 @@ async function personalize(templatePath, promptPath, contact, env) {
     sender_email: env.sender_email || '',
     voice_dna: voiceDna,
     system_prompt: systemPrompt,
+    context_files: env.context_files || '',
     // legacy placeholder — kept for backward compatibility with old prompt templates
     voice_profile: voiceDna,
     template,

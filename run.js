@@ -76,11 +76,36 @@ async function main() {
   const { auth, sender } = loadProvider(provider);
 
   if (!csvPath) {
-    console.error('Usage: node run.js companies.csv [--dry-run] [--provider zoho|gmail|outlook]');
+    console.error('Usage: node run.js companies.csv [--dry-run] [--provider zoho|gmail|outlook] [--context-from-files file1.txt,file2.txt]');
     process.exit(1);
   }
 
   console.log(`Provider: ${provider}`);
+
+  // Parse --context-from-files / --context_from_files
+  const contextFlag = args.find(a => a.startsWith('--context-from-files') || a.startsWith('--context_from_files'));
+  let contextFilesContent = '';
+  if (contextFlag) {
+    const rawValue = contextFlag.includes('=')
+      ? contextFlag.split('=').slice(1).join('=')
+      : args[args.indexOf(contextFlag) + 1];
+    if (!rawValue || rawValue.startsWith('--')) {
+      console.error('--context-from-files requires a comma-separated list of file paths');
+      process.exit(1);
+    }
+    const contextPaths = rawValue.split(',').map(p => p.trim()).filter(Boolean);
+    for (const p of contextPaths) {
+      if (!fs.existsSync(p)) {
+        console.error(`Context file not found: ${p}`);
+        process.exit(1);
+      }
+    }
+    const sections = contextPaths.map(p =>
+      `[${path.basename(p)}]\n${fs.readFileSync(p, 'utf-8').trim()}`
+    );
+    contextFilesContent = `\n---\n\nADDITIONAL CONTEXT — use the information below to personalize the email where relevant:\n\n${sections.join('\n\n')}\n`;
+    console.log(`Context files: ${contextPaths.map(p => path.basename(p)).join(', ')}`);
+  }
 
   if (!fs.existsSync(csvPath)) {
     console.error(`CSV file not found: ${csvPath}`);
@@ -133,6 +158,7 @@ async function main() {
     promptPath: process.env.PROMPT_PATH || 'templates/prompt.txt',
     voiceProfilePath: process.env.VOICE_PROFILE_PATH || '',
     attachmentPaths,
+    contextFiles: contextFilesContent,
   };
 
   const finders = {

@@ -17,6 +17,7 @@ SYSTEM PROMPT — follow these rules:
 
 {{system_prompt}}
 
+{{context_files}}
 ---
 
 EMAIL FRAMEWORK: RAPID Method (Cold Outreach)
