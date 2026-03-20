@@ -155,25 +155,32 @@ The `--provider` flag takes precedence over `EMAIL_PROVIDER` in `.env`. If neith
 
 ## Running the pipeline
 
-### Basic CSV format
+### CSV format
 
 ```csv
-company_name,domain
-Acme Corp,acme.com
-Globex,globex.com
+company_name,contact_name,contact_email,domain
+Acme Corp,,,acme.com
+Globex,,,globex.com
 ```
 
-### Specifying contacts directly
+`contact_name` and `contact_email` are optional. The pipeline behavior depends on which are present:
 
-Add `contact_name` and `contact_email` columns to skip contact lookup entirely. Useful when you already know who you're reaching out to, or when Apollo/Hunter don't have data for a company:
+| `contact_name` | `contact_email` | Behavior |
+|---|---|---|
+| ✓ | ✓ | Skip all lookup — use both directly |
+| ✓ | — | Search Apollo for that specific person; if email found, use it. If not, fall through to apollo→hunter→scraper |
+| — | ✓ | Skip all lookup — send to this email with no contact name |
+| — | — | Normal lookup: apollo→hunter→scraper |
+
+Examples:
 
 ```csv
-company_name,domain,contact_name,contact_email
-Scout Out,scoutout.ai,Jane Smith,jane@scoutout.ai
-Acme Corp,acme.com,,
+company_name,contact_name,contact_email,domain
+Scout Out,Jane Smith,jane@scoutout.ai,scoutout.ai
+Acme Corp,John Doe,,acme.com
+Globex,,hello@globex.com,globex.com
+Initech,,,initech.com
 ```
-
-Leave `contact_name` and `contact_email` blank to fall back to normal lookup for that row.
 
 ### Run commands
 

@@ -27,17 +27,49 @@ async function runPipeline(company, env, deps, opts = {}) {
   const { dryRun = false, sendDelayMs = 0 } = opts;
   const { name: companyName, domain, slug, contactEmail, contactName } = company;
 
-  // 1. Find contacts — skip lookup if contact is provided directly in CSV
+  // 1. Find contacts
   let rawContacts = [];
-  if (contactEmail) {
-    rawContacts = [{ email: contactEmail, name: contactName || '', title: '', priority: 1 }];
+
+  if (contactName && contactEmail) {
+    // Both provided — skip all lookup
+    rawContacts = [{ email: contactEmail, name: contactName, title: '', priority: 1 }];
+  } else if (contactEmail) {
+    // Email only — use it directly, skip lookup
+    rawContacts = [{ email: contactEmail, name: '', title: '', priority: 1 }];
+  } else if (contactName) {
+    // Name only — try Apollo for this specific person first
+    let apolloMatch = null;
+    try {
+      apolloMatch = await finders.apolloByName(companyName, contactName);
+    } catch (err) {
+      console.warn(`[apollo:by-name] ${err.message}`);
+    }
+
+    if (apolloMatch) {
+      rawContacts = [apolloMatch];
+    } else {
+      // Fall through to original pipeline
+      const sources = [
+        ['apollo', () => finders.apollo(companyName)],
+        ['hunter', () => domain ? finders.hunter(domain) : null],
+        ['scraper', () => finders.scraper(companyName, domain || null)],
+      ];
+      for (const [source, call] of sources) {
+        try {
+          const result = await call();
+          if (result && result.length > 0) { rawContacts = result; break; }
+        } catch (err) {
+          console.warn(`[${source}] ${err.message}`);
+        }
+      }
+    }
   } else {
+    // Neither — original pipeline
     const sources = [
       ['apollo', () => finders.apollo(companyName)],
       ['hunter', () => domain ? finders.hunter(domain) : null],
       ['scraper', () => finders.scraper(companyName, domain || null)],
     ];
-
     for (const [source, call] of sources) {
       try {
         const result = await call();

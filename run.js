@@ -4,7 +4,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
-const { findContacts: apolloFind } = require('./src/contacts/apollo');
+const { findContacts: apolloFind, findContactByName: apolloFindByName } = require('./src/contacts/apollo');
 const { findContacts: hunterFind } = require('./src/contacts/hunter');
 const { findContacts: scraperFind } = require('./src/contacts/scraper');
 const { writeContacts, writeFailed, buildTakenSlugs } = require('./src/state/contacts');
@@ -166,6 +166,7 @@ async function main() {
 
   const finders = {
     apollo: apolloFind,
+    apolloByName: apolloFindByName,
     hunter: hunterFind,
     scraper: scraperFind,
   };
