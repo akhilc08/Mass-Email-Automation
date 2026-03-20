@@ -1,6 +1,6 @@
 # Mass Email Automation
 
-Automated cold outreach pipeline. Give it a CSV of companies, it finds the right contact, writes a personalized email in your voice, and sends it via Zoho Mail.
+Automated cold outreach pipeline. Give it a CSV of companies, it finds the right contact, writes a personalized email in your voice, and sends it via Zoho Mail, Gmail, or Outlook.
 
 ---
 
@@ -9,7 +9,7 @@ Automated cold outreach pipeline. Give it a CSV of companies, it finds the right
 1. **Contact discovery** — for each company, it queries Apollo.io first, then Hunter.io, then scrapes the company website as a fallback. The first source that returns results wins.
 2. **Contact ranking** — contacts are sorted by seniority (CEO/Founder > COO > CMO > Director > everyone else), then by email confidence within each tier.
 3. **Personalization** — Claude writes a unique email for each contact using your voice DNA, your system prompt, and the RAPID cold outreach framework. The result goes through a humanizer pass before sending.
-4. **Sending** — email is sent via Zoho Mail. Failed sends (bounced, no contacts found, etc.) are written to `state/failed/` for review.
+4. **Sending** — email is sent via your chosen provider (Zoho, Gmail, or Outlook). Failed sends (bounced, no contacts found, etc.) are written to `state/failed/` for review.
 5. **Logging** — every outcome is appended to `state/outreach_log.json`.
 
 ---
@@ -35,10 +35,7 @@ Open `.env` and fill in:
 | `ANTHROPIC_API_KEY` | Yes | Claude API key for email personalization |
 | `APOLLO_API_KEY` | No* | Apollo.io API key for contact lookup |
 | `HUNTER_API_KEY` | No* | Hunter.io API key for contact lookup |
-| `ZOHO_CLIENT_ID` | Yes | Zoho OAuth client ID |
-| `ZOHO_CLIENT_SECRET` | Yes | Zoho OAuth client secret |
-| `ZOHO_REFRESH_TOKEN` | Yes | Zoho OAuth refresh token (set by setup script) |
-| `ZOHO_ACCOUNT_ID` | Yes | Zoho account ID (set by setup script) |
+| `EMAIL_PROVIDER` | No | `zoho`, `gmail`, or `outlook` (default: `zoho`) |
 | `SENDER_NAME` | Yes | Your name as it appears in emails |
 | `SENDER_EMAIL` | Yes | Your sending email address |
 | `SEND_DELAY_SECONDS` | No | Seconds between sends (default: 30, max: 300) |
@@ -47,15 +44,60 @@ Open `.env` and fill in:
 
 *At least one of Apollo or Hunter is strongly recommended. The scraper fallback only finds generic emails, not named contacts.
 
-### 3. Set up Zoho Mail
+### 3. Set up your sending provider
 
-Run the one-time OAuth setup to get your refresh token and account ID:
+You only need to configure one provider. Run the setup script for whichever you want to use.
+
+#### Zoho Mail
 
 ```bash
 node setup-zoho-auth.js
 ```
 
-Follow the prompts. Your `.env` will be updated automatically with `ZOHO_REFRESH_TOKEN` and `ZOHO_ACCOUNT_ID`.
+Follow the prompts. Your `.env` will be updated with `ZOHO_REFRESH_TOKEN` and `ZOHO_ACCOUNT_ID`.
+
+Additional env vars needed:
+
+| Variable | Description |
+|---|---|
+| `ZOHO_CLIENT_ID` | Zoho OAuth client ID |
+| `ZOHO_CLIENT_SECRET` | Zoho OAuth client secret |
+| `ZOHO_REFRESH_TOKEN` | Set automatically by setup script |
+| `ZOHO_ACCOUNT_ID` | Set automatically by setup script |
+
+#### Gmail
+
+```bash
+node setup-gmail-auth.js
+```
+
+You need Google OAuth credentials (same ones used for voice profile setup, if you've already done that):
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a project → APIs & Services → Enable Gmail API
+3. OAuth consent screen → External → add your email as a test user
+4. Credentials → Create OAuth 2.0 Client ID → Desktop app
+5. Set authorized redirect URI: `http://localhost:8765/callback`
+6. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to your `.env`
+
+The script will open a browser, ask you to authorize, and write `GMAIL_REFRESH_TOKEN` to your `.env`.
+
+#### Outlook / Microsoft 365
+
+```bash
+node setup-outlook-auth.js
+```
+
+You need an Azure App Registration:
+
+1. Go to [Azure Portal](https://portal.azure.com/) → Azure Active Directory → App registrations
+2. New registration → name it anything → Account type: personal Microsoft accounts (or both)
+3. Redirect URI → Web → `http://localhost:8765/callback`
+4. API permissions → Add → Microsoft Graph → Delegated → `Mail.Send`
+5. Certificates & secrets → New client secret → copy the **Value** (not the ID)
+6. Overview → copy the **Application (client) ID**
+
+The script will open a browser, ask you to authorize, and write `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, and `MS_REFRESH_TOKEN` to your `.env`.
 
 ### 4. Build your voice DNA
 
@@ -65,16 +107,27 @@ This is what makes emails sound like you instead of an AI. The setup script conn
 node setup-voice-profile.js
 ```
 
-You'll need Google OAuth credentials (Gmail read-only access):
+You'll need Google OAuth credentials (same as Gmail setup above). The output is written to `config/voice-dna.md`. Review it and edit anything that's wrong — the more accurate it is, the better the emails.
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a project → APIs & Services → Enable Gmail API
-3. OAuth consent screen → External → add your email as a test user
-4. Credentials → Create OAuth 2.0 Client ID → Desktop app
-5. Set authorized redirect URI: `http://localhost:8765/callback`
-6. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to your `.env`
+---
 
-The output is written to `config/voice-dna.md`. Review it and edit anything that's wrong — the more accurate it is, the better the emails.
+## Choosing a provider
+
+Set it once in `.env`:
+
+```
+EMAIL_PROVIDER=gmail
+```
+
+Or pass it per-run with `--provider`:
+
+```bash
+node run.js companies.csv --provider gmail
+node run.js companies.csv --provider outlook
+node run.js companies.csv --provider zoho
+```
+
+The `--provider` flag takes precedence over `EMAIL_PROVIDER` in `.env`. If neither is set, the default is `zoho`.
 
 ---
 
@@ -112,6 +165,11 @@ Globex,globex.com
 node run.js companies.csv
 ```
 
+**With a specific provider:**
+```bash
+node run.js companies.csv --provider gmail
+```
+
 **Dry run** (finds contacts and personalizes but does not send):
 ```bash
 node run.js companies.csv --dry-run
@@ -119,6 +177,7 @@ node run.js companies.csv --dry-run
 
 Output at the end:
 ```
+Provider: gmail
 ✅ Sent successfully:  12 companies
 ⚠️  Failed (no email sent):  3 companies
    - Some Company  [no contacts found]

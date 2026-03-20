@@ -4,8 +4,6 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
-const { refreshToken, getToken } = require('./src/email/zoho-auth');
-const { sendEmail } = require('./src/email/sender');
 const { findContacts: apolloFind } = require('./src/contacts/apollo');
 const { findContacts: hunterFind } = require('./src/contacts/hunter');
 const { findContacts: scraperFind } = require('./src/contacts/scraper');
@@ -13,6 +11,49 @@ const { writeContacts, writeFailed, buildTakenSlugs } = require('./src/state/con
 const Logger = require('./src/state/logger');
 const { uniqueSlug } = require('./src/utils/slug');
 const { runPipeline } = require('./src/pipeline');
+
+const VALID_PROVIDERS = ['zoho', 'gmail', 'outlook'];
+
+function resolveProvider(args) {
+  const flag = args.find(a => a.startsWith('--provider=') || a === '--provider');
+  if (flag) {
+    const value = flag.includes('=') ? flag.split('=')[1] : args[args.indexOf(flag) + 1];
+    if (!VALID_PROVIDERS.includes(value)) {
+      console.error(`Invalid provider "${value}". Must be one of: ${VALID_PROVIDERS.join(', ')}`);
+      process.exit(1);
+    }
+    return value;
+  }
+  const envProvider = (process.env.EMAIL_PROVIDER || '').toLowerCase();
+  if (envProvider) {
+    if (!VALID_PROVIDERS.includes(envProvider)) {
+      console.error(`Invalid EMAIL_PROVIDER "${envProvider}". Must be one of: ${VALID_PROVIDERS.join(', ')}`);
+      process.exit(1);
+    }
+    return envProvider;
+  }
+  return 'zoho';
+}
+
+function loadProvider(provider) {
+  switch (provider) {
+    case 'gmail':
+      return {
+        auth: require('./src/email/gmail-auth'),
+        sender: require('./src/email/gmail-sender'),
+      };
+    case 'outlook':
+      return {
+        auth: require('./src/email/outlook-auth'),
+        sender: require('./src/email/outlook-sender'),
+      };
+    default:
+      return {
+        auth: require('./src/email/zoho-auth'),
+        sender: require('./src/email/sender'),
+      };
+  }
+}
 
 const STATE_DIR = 'state';
 const LOG_PATH = path.join(STATE_DIR, 'outreach_log.json');
@@ -31,11 +72,15 @@ async function main() {
   const args = process.argv.slice(2);
   const csvPath = args.find(a => !a.startsWith('--'));
   const dryRun = args.includes('--dry-run');
+  const provider = resolveProvider(args);
+  const { auth, sender } = loadProvider(provider);
 
   if (!csvPath) {
-    console.error('Usage: node run.js companies.csv [--dry-run]');
+    console.error('Usage: node run.js companies.csv [--dry-run] [--provider zoho|gmail|outlook]');
     process.exit(1);
   }
+
+  console.log(`Provider: ${provider}`);
 
   if (!fs.existsSync(csvPath)) {
     console.error(`CSV file not found: ${csvPath}`);
@@ -67,12 +112,12 @@ async function main() {
   const takenSlugs = buildTakenSlugs(STATE_DIR);
   const logger = new Logger(LOG_PATH);
 
-  // Zoho token refresh (skip in dry-run)
+  // Token refresh (skip in dry-run)
   if (!dryRun) {
     try {
-      await refreshToken();
+      await auth.refreshToken();
     } catch (err) {
-      console.error(`Zoho token refresh failed: ${err.message}`);
+      console.error(`${provider} token refresh failed: ${err.message}`);
       process.exit(1);
     }
   }
@@ -103,9 +148,9 @@ async function main() {
 
   // Sender wrapper that uses current token
   const senderFn = (mail) => {
-    const token = getToken();
-    const accountId = process.env.ZOHO_ACCOUNT_ID;
-    return sendEmail(token, accountId, mail);
+    const token = auth.getToken();
+    const accountId = provider === 'zoho' ? process.env.ZOHO_ACCOUNT_ID : null;
+    return sender.sendEmail(token, accountId, mail);
   };
 
   const results = { sent: [], failed: [] };
@@ -126,7 +171,7 @@ async function main() {
     });
 
     if (outcome === 'halt') {
-      console.error('Run halted: Zoho returned 401/403. Check credentials.');
+      console.error(`Run halted: ${provider} returned 401/403. Check credentials.`);
       process.exit(1);
     }
 
