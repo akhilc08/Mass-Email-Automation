@@ -142,7 +142,7 @@ node run.js companies.csv --provider outlook
 node run.js companies.csv --provider zoho
 ```
 
-The `--provider` flag takes precedence over `EMAIL_PROVIDER` in `.env`. If neither is set, the default is `zoho`.
+The `--provider` flag takes precedence over `EMAIL_PROVIDER` in `.env`. If neither is set, the default is `gmail`.
 
 ---
 
