@@ -1,0 +1,21 @@
+# Who I am
+I'm Akhil, founder of [Your Company]. We help [target customer type] with [specific problem].
+
+# What I'm offering
+[Describe your product/service in 1-2 sentences. Be specific — not "we help companies grow" but "we build outbound sales infrastructure for B2B SaaS companies under 50 people who don't have a dedicated SDR."]
+
+# Why I'm reaching out
+[What's the angle? e.g. "I'm reaching out to ops-focused founders at logistics companies because our tool cuts manual data entry by ~60% in that vertical."]
+
+# What I want from this email
+[One clear ask — a 15-min call, a demo, a reply, etc. Keep it low-commitment.]
+
+# Key talking points (pick 1-2 per email, don't use all of them)
+- [Point 1: e.g. "We've worked with companies like X and Y"]
+- [Point 2: e.g. "Setup takes under a day, no engineering required"]
+- [Point 3: e.g. "We charge based on results, not seats"]
+
+# What NOT to say
+- Don't mention pricing
+- Don't use the word "synergy" or "partnership"
+- Don't pitch the product — pitch the conversation

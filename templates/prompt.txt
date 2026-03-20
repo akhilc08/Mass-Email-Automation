@@ -20,6 +20,12 @@ SYSTEM PROMPT — follow these rules:
 {{context_files}}
 ---
 
+SENDER'S PITCH — what {{sender_name}} is offering and wants to communicate:
+
+{{user_prompt}}
+
+---
+
 EMAIL FRAMEWORK: RAPID Method (Cold Outreach)
 
 Step 1 — Research: The recipient is {{exec_title}} at {{company_name}}.

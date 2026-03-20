@@ -26,6 +26,10 @@ async function personalize(templatePath, promptPath, contact, env) {
   const systemPromptPath = env.system_prompt_path || process.env.SYSTEM_PROMPT_PATH || path.join('config', 'system-prompt.md');
   const systemPrompt = loadOptionalFile(systemPromptPath);
 
+  // Load user prompt (templates/user_prompt.txt)
+  const userPromptPath = env.user_prompt_path || process.env.USER_PROMPT_PATH || path.join('templates', 'user_prompt.txt');
+  const userPrompt = loadOptionalFile(userPromptPath);
+
   const placeholders = {
     first_name: firstName,
     full_name: name || 'there',
@@ -36,6 +40,7 @@ async function personalize(templatePath, promptPath, contact, env) {
     voice_dna: voiceDna,
     system_prompt: systemPrompt,
     context_files: env.context_files || '',
+    user_prompt: userPrompt,
     // legacy placeholder — kept for backward compatibility with old prompt templates
     voice_profile: voiceDna,
     template,
