@@ -1,0 +1,33 @@
+# Who I am
+[Describe yourself in 1-2 sentences. Include your name, role, and relevant background.]
+
+Example: "I'm Jane Smith, a software engineer at Acme Corp reaching out to startups in the logistics space."
+
+# Purpose of this email
+[Describe what you want from this email — a call, a partnership conversation, a job opportunity, etc.]
+
+Example: "Cold outreach for a B2B SaaS product. The ask is a 20-minute discovery call."
+
+# How to fill in the template
+The template has placeholders — replace each with specific, researched content.
+
+## {{ONE LINE ABOUT RELEVANT PERSONAL EXPERIENCE}}
+One sentence connecting your background to what the recipient's company does.
+
+Rules:
+- One sentence only
+- Tie it to what this specific company does
+- Do not fabricate company names or experiences
+
+## {{SPECIFIC OBSERVATION ABOUT THE COMPANY}}
+A phrase or sentence about what this company is actually building.
+
+Rules:
+- Be specific — describe their product, not their industry
+- Pull from the COMPANY RESEARCH section if available
+- Do not use: innovative, passionate, excited, groundbreaking
+
+# What NOT to do
+- Do not pitch aggressively or mention pricing
+- Do not start with "I hope this email finds you well"
+- Do not use: leverage, synergy, passionate, excited, thrilled, genuinely
