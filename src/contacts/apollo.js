@@ -1,3 +1,6 @@
+const rankContacts = require('./ranker');
+const { isPersonalEmail } = require('./validator');
+
 const LEADERSHIP_PATTERN = /\b(CEO|President|Founder|Owner|COO|VP|Vice President|CMO|Director|General Manager|Managing Director|C[A-Z]O|Head of|Chief\s+\w+\s+Officer)\b/i;
 
 function isLeadership(title) {
@@ -42,7 +45,7 @@ async function searchPeople(apiKey, body) {
     let json = {};
     try { json = await res.json(); } catch {}
     const msg = json.error_code === 'API_INACCESSIBLE'
-      ? 'Apollo people search requires a paid plan — upgrade at app.apollo.io or use contact_email column in CSV'
+      ? 'Apollo people search failed — check APOLLO_API_KEY permissions'
       : 'Apollo request forbidden — check API key permissions';
     const err = new Error(msg);
     err.status = 403;
@@ -111,7 +114,7 @@ async function findContacts(companyName, domain) {
   const contacts = [];
   for (const p of candidates) {
     const contact = await revealEmail(apiKey, p.id);
-    if (contact) contacts.push(contact);
+    if (contact && isPersonalEmail(contact.email)) contacts.push(contact);
   }
 
   if (contacts.length === 0) return contacts;
@@ -120,7 +123,7 @@ async function findContacts(companyName, domain) {
   if (domain) {
     const cleanDomain = domain.replace(/^www\./, '');
     const exact = contacts.filter(c => (c.email.split('@')[1] || '') === cleanDomain);
-    if (exact.length > 0) return exact;
+    if (exact.length > 0) return [rankContacts(exact)[0]];
   }
 
   // 2. Fallback: use the most common email domain among results.
@@ -136,11 +139,12 @@ async function findContacts(companyName, domain) {
     const topCount = Math.max(...Object.values(domainCounts));
     if (topCount > 1) {
       const topDomain = Object.keys(domainCounts).find(d => domainCounts[d] === topCount);
-      return contacts.filter(c => (c.email.split('@')[1] || '') === topDomain);
+      const filtered = contacts.filter(c => (c.email.split('@')[1] || '') === topDomain);
+      return [rankContacts(filtered)[0]];
     }
   }
 
-  return contacts;
+  return [rankContacts(contacts)[0]];
 }
 
 async function findContactByName(companyName, contactName, domain) {

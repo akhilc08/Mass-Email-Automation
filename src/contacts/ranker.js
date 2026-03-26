@@ -9,8 +9,9 @@ const CONFIDENCE_ORDER = { high: 0, medium: 1, low: 2 };
 
 function getPriority(title) {
   if (!title) return 5;
+  const normalized = title.replace(/\b(?:Product|Project|Account|Content|Queue)\s+Owner\b/gi, '');
   for (const rule of PRIORITY_RULES) {
-    if (rule.patterns.some(p => p.test(title))) return rule.priority;
+    if (rule.patterns.some(p => p.test(normalized))) return rule.priority;
   }
   return 5;
 }

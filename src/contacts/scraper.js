@@ -1,4 +1,5 @@
 const cheerio = require('cheerio');
+const { isPersonalEmail } = require('./validator');
 
 const PERSONAL_DOMAINS = new Set([
   'gmail.com', 'yahoo.com', 'yahoo.co.uk', 'hotmail.com', 'hotmail.co.uk',
@@ -81,11 +82,11 @@ async function findContacts(companyName, domain) {
     emails = await scrapeWebsite(baseUrl);
   } catch {}
 
-  if (emails.length === 0) {
-    return [{ name: '', title: '', email: `info@${derivedDomain}`, source: 'scraper', confidence: 'low' }];
-  }
+  const personal = emails.filter(isPersonalEmail);
 
-  return emails.map(email => ({
+  if (personal.length === 0) return [];
+
+  return personal.map(email => ({
     name: '', title: '', email, source: 'scraper', confidence: 'medium',
   }));
 }

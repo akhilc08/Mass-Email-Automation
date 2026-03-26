@@ -1,9 +1,11 @@
+const { isPersonalEmail } = require('./validator');
+
 const LEADERSHIP_PATTERN = /\b(CEO|President|Founder|Owner|COO|VP|Vice President|CMO|Director|General Manager|Managing Director|C[A-Z]O|Head of)\b/i;
 
 function parseHunterResponse(data) {
   const emails = (data.data && data.data.emails) || [];
   return emails
-    .filter(e => e.position && LEADERSHIP_PATTERN.test(e.position))
+    .filter(e => e.position && LEADERSHIP_PATTERN.test(e.position) && isPersonalEmail(e.value))
     .map(e => ({
       name: [e.first_name, e.last_name].filter(Boolean).join(' '),
       title: e.position,
