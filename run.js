@@ -12,7 +12,7 @@ const Logger = require('./src/state/logger');
 const { uniqueSlug } = require('./src/utils/slug');
 const { runPipeline } = require('./src/pipeline');
 
-const VALID_PROVIDERS = ['zoho', 'gmail', 'outlook'];
+const VALID_PROVIDERS = ['gmail', 'outlook'];
 
 function resolveProvider(args) {
   const flag = args.find(a => a.startsWith('--provider=') || a === '--provider');
@@ -32,16 +32,11 @@ function resolveProvider(args) {
     }
     return envProvider;
   }
-  return 'zoho';
+  return 'gmail';
 }
 
 function loadProvider(provider) {
   switch (provider) {
-    case 'gmail':
-      return {
-        auth: require('./src/email/gmail-auth'),
-        sender: require('./src/email/gmail-sender'),
-      };
     case 'outlook':
       return {
         auth: require('./src/email/outlook-auth'),
@@ -49,8 +44,8 @@ function loadProvider(provider) {
       };
     default:
       return {
-        auth: require('./src/email/zoho-auth'),
-        sender: require('./src/email/sender'),
+        auth: require('./src/email/gmail-auth'),
+        sender: require('./src/email/gmail-sender'),
       };
   }
 }
@@ -77,7 +72,7 @@ async function main() {
   const { auth, sender } = loadProvider(provider);
 
   if (!csvPath) {
-    console.error('Usage: node run.js companies.csv [--dry-run] [--provider zoho|gmail|outlook] [--web-search] [--context-from-files file1.txt,file2.txt]');
+    console.error('Usage: node run.js companies.csv [--dry-run] [--provider gmail|outlook] [--web-search] [--context-from-files file1.txt,file2.txt]');
     process.exit(1);
   }
 
@@ -179,8 +174,7 @@ async function main() {
   // Sender wrapper that uses current token
   const senderFn = (mail) => {
     const token = auth.getToken();
-    const accountId = provider === 'zoho' ? process.env.ZOHO_ACCOUNT_ID : null;
-    return sender.sendEmail(token, accountId, mail);
+    return sender.sendEmail(token, null, mail);
   };
 
   const results = { sent: [], failed: [] };

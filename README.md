@@ -1,6 +1,6 @@
 # Mass Email Automation
 
-Automated cold outreach pipeline. Give it a CSV of companies, it finds the right contact, writes a personalized email in your voice, and sends it via Zoho Mail, Gmail, or Outlook.
+Automated cold outreach pipeline. Give it a CSV of companies, it finds the right contact, writes a personalized email in your voice, and sends it via Gmail or Outlook.
 
 ---
 
@@ -9,7 +9,7 @@ Automated cold outreach pipeline. Give it a CSV of companies, it finds the right
 1. **Contact discovery** — for each company, it queries Apollo.io first, then Hunter.io, then scrapes the company website as a fallback. The first source that returns results wins. You can also specify contacts directly in the CSV to skip lookup entirely.
 2. **Contact ranking** — contacts are sorted by seniority (CEO/Founder > COO > CMO > Director > everyone else), then by email confidence within each tier.
 3. **Personalization** — Claude writes a unique email for each contact using your voice DNA, your user prompt, and any additional context. The result goes through a humanizer pass before sending.
-4. **Sending** — email is sent via your chosen provider (Zoho, Gmail, or Outlook). Failed sends are written to `state/failed/` for review.
+4. **Sending** — email is sent via your chosen provider (Gmail or Outlook). Failed sends are written to `state/failed/` for review.
 5. **Logging** — every outcome is appended to `state/outreach_log.json` and a CSV report is written to `state/outreach_report.csv`.
 
 ---
@@ -35,7 +35,7 @@ Open `.env` and fill in:
 | `ANTHROPIC_API_KEY` | Yes | Claude API key for email personalization |
 | `APOLLO_API_KEY` | No* | Apollo.io API key (paid plan required for people search) |
 | `HUNTER_API_KEY` | No* | Hunter.io API key for contact lookup |
-| `EMAIL_PROVIDER` | No | `zoho`, `gmail`, or `outlook` (default: `zoho`) |
+| `EMAIL_PROVIDER` | No | `gmail` or `outlook` (default: `gmail`) |
 | `SENDER_NAME` | Yes | Your name as it appears in emails |
 | `SENDER_EMAIL` | Yes | Your sending email address |
 | `SEND_DELAY_SECONDS` | No | Seconds between sends (default: 30, max: 300) |
@@ -50,28 +50,6 @@ Open `.env` and fill in:
 ### 3. Set up your sending provider
 
 You only need to configure one provider. Run the setup script for whichever you want to use.
-
-#### Zoho Mail
-
-Before running the setup script, create a Zoho OAuth client:
-
-1. Go to [Zoho API Console](https://api-console.zoho.com/) and sign in
-2. Create a new client → **Server-based Applications**
-3. Set the redirect URI to `https://localhost`
-4. Copy the **Client ID** and **Client Secret**
-5. Add them to your `.env`:
-   ```
-   ZOHO_CLIENT_ID=your_client_id
-   ZOHO_CLIENT_SECRET=your_client_secret
-   ```
-
-Then run the setup script:
-
-```bash
-node setup-zoho-auth.js
-```
-
-It will open an auth URL, exchange the code for tokens, and automatically write `ZOHO_REFRESH_TOKEN` and `ZOHO_ACCOUNT_ID` to your `.env`.
 
 #### Gmail
 
@@ -146,10 +124,9 @@ Or pass it per-run with `--provider`:
 ```bash
 node run.js companies.csv --provider gmail
 node run.js companies.csv --provider outlook
-node run.js companies.csv --provider zoho
 ```
 
-The `--provider` flag takes precedence over `EMAIL_PROVIDER` in `.env`. If neither is set, the default is `zoho`.
+The `--provider` flag takes precedence over `EMAIL_PROVIDER` in `.env`. If neither is set, the default is `gmail`.
 
 ---
 
