@@ -40,7 +40,7 @@ async function runPipeline(company, env, deps, opts = {}) {
     // Name only — try Apollo for this specific person first
     let apolloMatch = null;
     try {
-      apolloMatch = await finders.apolloByName(companyName, contactName);
+      apolloMatch = await finders.apolloByName(companyName, contactName, domain);
     } catch (err) {
       console.warn(`[apollo:by-name] ${err.message}`);
     }
@@ -50,7 +50,7 @@ async function runPipeline(company, env, deps, opts = {}) {
     } else {
       // Fall through to original pipeline
       const sources = [
-        ['apollo', () => finders.apollo(companyName)],
+        ['apollo', () => finders.apollo(companyName, domain)],
         ['hunter', () => domain ? finders.hunter(domain) : null],
         ['scraper', () => finders.scraper(companyName, domain || null)],
       ];
@@ -66,7 +66,7 @@ async function runPipeline(company, env, deps, opts = {}) {
   } else {
     // Neither — original pipeline
     const sources = [
-      ['apollo', () => finders.apollo(companyName)],
+      ['apollo', () => finders.apollo(companyName, domain)],
       ['hunter', () => domain ? finders.hunter(domain) : null],
       ['scraper', () => finders.scraper(companyName, domain || null)],
     ];

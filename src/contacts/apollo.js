@@ -19,22 +19,24 @@ function parseApolloResponse(data) {
     }));
 }
 
-async function findContacts(companyName) {
+async function findContacts(companyName, domain) {
   if (!process.env.APOLLO_API_KEY) {
     throw new Error('APOLLO_API_KEY environment variable is not set');
   }
   const apiKey = process.env.APOLLO_API_KEY;
-  const res = await fetch('https://api.apollo.io/v1/mixed_people/search', {
+  const body = {
+    q_organization_name: companyName,
+    page: 1,
+    per_page: 25,
+  };
+  if (domain) body.organization_domains = [domain.replace(/^www\./, '')];
+  const res = await fetch('https://api.apollo.io/v1/mixed_people/api_search', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Api-Key': apiKey,
     },
-    body: JSON.stringify({
-      q_organization_name: companyName,
-      page: 1,
-      per_page: 25,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (res.status === 401) {
@@ -67,23 +69,25 @@ async function findContacts(companyName) {
   return parseApolloResponse(data);
 }
 
-async function findContactByName(companyName, contactName) {
+async function findContactByName(companyName, contactName, domain) {
   if (!process.env.APOLLO_API_KEY) {
     throw new Error('APOLLO_API_KEY environment variable is not set');
   }
   const apiKey = process.env.APOLLO_API_KEY;
-  const res = await fetch('https://api.apollo.io/v1/mixed_people/search', {
+  const body = {
+    q_organization_name: companyName,
+    q_keywords: contactName,
+    page: 1,
+    per_page: 10,
+  };
+  if (domain) body.organization_domains = [domain.replace(/^www\./, '')];
+  const res = await fetch('https://api.apollo.io/v1/mixed_people/api_search', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Api-Key': apiKey,
     },
-    body: JSON.stringify({
-      q_organization_name: companyName,
-      q_keywords: contactName,
-      page: 1,
-      per_page: 10,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (res.status === 401) {
@@ -140,8 +144,9 @@ module.exports = { findContacts, findContactByName, parseApolloResponse };
 if (require.main === module) {
   require('dotenv').config();
   const companyName = process.argv[2];
-  if (!companyName) { console.error('Usage: node src/contacts/apollo.js "Company Name"'); process.exit(1); }
-  findContacts(companyName)
+  const domain = process.argv[3];
+  if (!companyName) { console.error('Usage: node src/contacts/apollo.js "Company Name" [domain]'); process.exit(1); }
+  findContacts(companyName, domain)
     .then(contacts => console.log(JSON.stringify(contacts, null, 2)))
     .catch(err => { console.error(err.message); process.exit(1); });
 }
