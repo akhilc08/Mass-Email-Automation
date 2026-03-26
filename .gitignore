@@ -7,3 +7,5 @@ config/voice-dna.md
 templates/template.txt
 templates/user_prompt.txt
 templates/voice-profile.md
+files/
+*.csv
