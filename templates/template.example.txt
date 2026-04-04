@@ -6,7 +6,7 @@ Dear {{first_name}},
 
 {{ONE LINE ABOUT YOUR RELEVANT BACKGROUND}}. {{ONE SPECIFIC OBSERVATION ABOUT WHAT THE COMPANY IS BUILDING}}.
 
-{{CLEAR, LOW-PRESSURE ASK — e.g. "Would you be open to a 20-minute call sometime next week?"}}. Happy to accommodate your schedule.
+"Would you be open to a 20-minute call sometime next week?". Happy to accommodate your schedule.
 
 Thank you for your time.
 

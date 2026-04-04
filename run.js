@@ -67,7 +67,7 @@ async function main() {
   const args = process.argv.slice(2);
   const csvPath = args.find(a => !a.startsWith('--'));
   const dryRun = args.includes('--dry-run');
-  const webSearch = args.includes('--web-search');
+  const webSearch = !args.includes('--no-web-search');
   const provider = resolveProvider(args);
   const { auth, sender } = loadProvider(provider);
 
@@ -113,7 +113,8 @@ async function main() {
   const attachmentPaths = (process.env.ATTACHMENT_PATHS || '')
     .split(',')
     .map(p => p.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .map(p => path.resolve(p));
   for (const p of attachmentPaths) {
     if (!fs.existsSync(p)) {
       console.error(`Attachment file not found: ${p}`);
@@ -171,8 +172,9 @@ async function main() {
     writeFailed: (slug, data) => writeFailed(slug, data, STATE_DIR),
   };
 
-  // Sender wrapper that uses current token
-  const senderFn = (mail) => {
+  // Sender wrapper — refreshes token before every send so long runs don't 401
+  const senderFn = async (mail) => {
+    await auth.refreshToken();
     const token = auth.getToken();
     return sender.sendEmail(token, null, mail);
   };
@@ -213,6 +215,10 @@ async function main() {
 
     if (contacted) {
       results.sent.push(companyName);
+      if (!dryRun && results.sent.length % 10 === 0) {
+        console.log(`  [checkpoint] Sending test email after ${results.sent.length} sends...`);
+        await senderFn({ from: env.senderEmail, to: 'saiakhil.chilaka@gmail.com', subject: 'hi', body: 'hi', attachments: [] });
+      }
     } else {
       results.failed.push({ company: companyName, reason: outcome });
     }

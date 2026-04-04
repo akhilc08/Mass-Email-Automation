@@ -147,6 +147,8 @@ async function runPipeline(company, env, deps, opts = {}) {
         body = p.body;
       } catch (err) {
         console.warn(`[personalizer] ${err.message}`);
+        console.warn(`  Skipping ${companyName} — email body could not be generated`);
+        continue;
       }
     }
 
