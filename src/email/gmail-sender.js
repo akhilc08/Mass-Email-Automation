@@ -3,6 +3,11 @@ const path = require('path');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+function encodeHeader(value) {
+  if (/^[\x00-\x7F]*$/.test(value)) return value;
+  return `=?UTF-8?B?${Buffer.from(value).toString('base64')}?=`;
+}
+
 function buildRfc2822(mail) {
   const boundary = `boundary_${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const hasAttachments = mail.attachments && mail.attachments.length > 0;
@@ -11,7 +16,8 @@ function buildRfc2822(mail) {
     'MIME-Version: 1.0',
     `From: ${mail.from}`,
     `To: ${mail.to}`,
-    `Subject: ${mail.subject}`,
+    ...(mail.cc ? [`Cc: ${mail.cc}`] : []),
+    `Subject: ${encodeHeader(mail.subject)}`,
   ];
 
   let raw;
